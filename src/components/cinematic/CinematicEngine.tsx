@@ -35,7 +35,8 @@ function ScrollCamera() {
 function HeroArtifact() {
   const group = useRef<THREE.Group>(null)
   const ring = useRef<THREE.Mesh>(null)
-  const material = useRef<any>(null)
+  // Keep the material strongly typed while retaining access to the custom thickness property.
+  const material = useRef<THREE.MeshPhysicalMaterial & { thickness: number }>(null)
 
   useFrame((state, delta) => {
     if (!group.current) return
