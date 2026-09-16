@@ -4,29 +4,23 @@
 Build a reusable, premium web experience that can feel like a cinematic video while scrolling, while keeping real-time 3D motion independent from scroll. Scroll must be reversible and scrub-able; when scrolling stops, the 3D scene continues animating.
 
 ## Current repository review
-The current project is a Next.js App Router project using React 19, React Three Fiber 9 RC, Three.js 0.170, Drei, and GSAP. The current `CinematicEngine` already demonstrates two separate timelines: a scroll-derived camera timeline and an independent `useFrame` animation loop. It currently uses a procedural torus-knot artifact, a ring, particles, transmission material, environment lighting, and Lenis code in the source.
+The project is a Next.js App Router experience using React, React Three Fiber, Three.js, Drei, GSAP, Lenis and `@react-three/postprocessing`. The engine deliberately separates a deterministic cinematic timeline from autonomous R3F motion.
 
-### Current strengths
-- Next.js/Vercel-ready structure.
-- Client-only WebGL scene isolated from SSR.
-- React Three Fiber + Drei foundation.
-- Independent render-loop animation already separated from scroll state.
-- Scroll progress already affects camera position.
-- Responsive CSS and reduced-motion baseline.
+## Integrated resources
 
-### Current gaps
-- No production GLB/glTF asset pipeline.
-- No DRACO, Meshopt, or KTX2 loader setup.
-- No HDRI asset strategy.
-- No proper GSAP ScrollTrigger cinematic timeline.
-- No R3F scroll-rig / DOM-to-WebGL synchronization.
-- No image-sequence canvas system for pre-rendered cinematic shots.
-- No post-processing pipeline.
-- No adaptive quality/performance monitor.
-- No asset preloading/cache strategy.
-- No scene/chapter abstraction for reusable client projects.
-- No mobile quality tiers.
-- No automated visual/performance verification yet.
+### Preserved and active
+- `public/assets/Macbook_Top.glb` and `public/assets/Macbook_Bottom.glb` remain intact and are now loaded by the primary cinematic canvas.
+- `src/components/MacBook.tsx` remains intact in concept and preserves the original GSAP MacBook choreography. Its lifecycle and asset URLs were hardened for the shared engine.
+- `src/components/Scene.tsx` remains preserved as an alternate/reference scene. Its important ideas are reused by the primary engine without mounting a second WebGL canvas.
+- Existing procedural torus-knot, ring, particles, transmission material, environment lighting and independent `useFrame` motion remain part of the main hero.
+- `ContactShadows` is integrated for grounding the GLB scene.
+- Lenis is integrated as the smooth-scroll transport and synchronized with GSAP.
+- GSAP ScrollTrigger is the cinematic timeline layer.
+- `PerformanceMonitor` and `AdaptiveDpr` are integrated into the render loop.
+- `@react-three/postprocessing` is integrated for a small cinematic effect chain.
+- `ImageSequence.tsx` is implemented as the film-plate integration surface for future pre-rendered shots.
+- Centralized scroll state is implemented in `src/lib/cinematic/scroll-state.ts`.
+- `CinematicChapter.tsx` provides a reusable chapter abstraction.
 
 ## Research references
 
@@ -36,7 +30,7 @@ Use for DOM/WebGL synchronization, shared GlobalCanvas architecture, viewport tr
 
 ### 2. Lenis
 https://github.com/darkroomengineering/lenis
-Use for smooth scrolling and WebGL synchronization. MIT licensed. Keep scroll handling independent from the real-time 3D animation loop.
+Use for smooth scrolling and WebGL synchronization. Current package is `1.3.26`. It explicitly supports custom RAF loops and GSAP ScrollTrigger synchronization. MIT licensed. citeturn847067search0
 
 ### 3. GSAP ScrollTrigger
 https://gsap.com/docs/v3/Plugins/ScrollTrigger/
@@ -66,93 +60,79 @@ Reference for scroll-as-frame architecture and multi-stage asset loading. Use th
 ## Chosen architecture
 
 ### Layer A — Cinematic Director
-GSAP ScrollTrigger controls a normalized `scrollProgress` from 0..1. It drives camera waypoints, section transitions, object transforms that are intentionally scroll-linked, HTML chapter visibility, and image-sequence frames.
+`CinematicDirector.tsx` owns the scroll transport. Lenis runs on the GSAP ticker, updates centralized scroll state, and calls `ScrollTrigger.update()` so all scrubbed timelines share one transport.
 
 ### Layer B — Real-Time Actor
-R3F `useFrame` runs continuously. It drives independent rotation, mechanical sub-movements, particles, shader uniforms, light animation, subtle camera breathing, and other time-based behavior. This continues when scrolling stops.
+R3F `useFrame` runs continuously. It drives independent rotation, mechanical sub-movements, particles, material animation, pointer parallax and camera breathing. This continues when scrolling stops.
 
 ### Layer C — Photorealistic Render
-Three.js PBR materials + HDR environment lighting + ACES/modern color management + carefully budgeted postprocessing. GLB assets are compressed with Draco/Meshopt and textures with KTX2/Basis where appropriate.
+Three.js PBR materials + studio/HDR-style environment lighting + ACES filmic tone mapping + a small postprocessing chain. Current production dependencies are aligned to Fiber 9.7, Drei 10.7 and postprocessing 3.1.0; current Fiber is 9.7.0 and current Drei is 10.7.8. citeturn924123search0turn847067search1turn847067search2
 
 ### Layer D — Film Plate
-A sticky canvas image-sequence renderer provides pre-rendered Blender/Cinema4D-quality shots for maximum realism. It is reversible and scrub-able because scroll controls the frame rather than video playback.
+`ImageSequence.tsx` maps normalized progress directly to frame index. This is intentionally present even before real frames are added, because pre-rendered frame sequences are the correct integration surface for a video-like scroll experience with exact reverse scrubbing.
 
 ### Layer E — Performance Director
-Use device capability detection, R3F PerformanceMonitor/adaptive DPR, LOD, lazy loading, responsive texture resolution, mobile scene simplification, and reduced-motion fallback. Heavy effects should regress during fast interaction and recover after motion settles.
+The current engine uses `PerformanceMonitor`, `AdaptiveDpr`, velocity-based `performance.regress()`, reduced-motion handling and responsive CSS. Future steps can add device capability detection, LOD and texture resolution tiers.
 
-## Planned project structure
+## Dependency and security alignment
+
+The original project used Next.js 15.0.3 with a React 19 release candidate and React Three Fiber 9 RC. That created peer mismatches once postprocessing was introduced. The package stack has now been aligned to:
 
 ```text
-src/
-  app/
-    page.tsx
-    globals.css
-  components/
-    cinematic/
-      CinematicEngine.tsx
-      CinematicCanvas.tsx
-      CinematicDirector.tsx
-      CinematicChapter.tsx
-      ScrollTimeline.tsx
-      ImageSequence.tsx
-      SceneAsset.tsx
-      PerformanceDirector.tsx
-      effects/
-      scenes/
-  lib/
-    cinematic/
-      timeline.ts
-      performance.ts
-      assets.ts
-      device.ts
-      math.ts
-public/
-  models/
-  textures/
-  hdr/
-  sequences/
+Next.js           15.5.25
+React             19.2.4
+React DOM         19.2.4
+R3F               9.7.0
+Drei              10.7.8
+postprocessing    3.1.0
+Three             0.186.0
+Lenis             1.3.26
 ```
 
-## Build phases
+Next.js 15.5 is on the maintenance line, and the React/Next security advisories document patched 15.x releases. The August 2026 Next.js security release also lists 15.5.24 as a maintenance release, while the registry currently exposes 15.5.25. citeturn681234search0turn681234search1turn681234search8
 
-### Phase 1 — Foundation
-- Keep Next.js + R3F + Drei + Three.js.
-- Install Lenis and synchronize its RAF with the animation system.
-- Add GSAP ScrollTrigger and one normalized timeline.
-- Create a central cinematic state containing scroll progress, velocity and time.
+React 19.2.4 is used rather than the old project RC so that the 3D stack does not depend on an obsolete React prerelease. React's security advisory documents fixed RSC releases in the 19.x lines. citeturn681234search4
 
-### Phase 2 — Real asset pipeline
-- Add GLTFLoader/DRACO/Meshopt/KTX2 support.
-- Add GLB scene abstraction and disposal strategy.
-- Add HDR environment loading.
-- Add model LOD and responsive asset variants.
+## Dependency-install strategy
 
-### Phase 3 — Film-quality rendering
-- Add postprocessing with bloom/DOF/vignette/color grading only where useful.
-- Add custom shader hooks.
-- Add film grain and subtle lens effects as optional layers.
-- Tune exposure, tone mapping, roughness, transmission and reflections.
+The repository uses pnpm and declares `packageManager: pnpm@10.28.0`. Vercel confirmed that it runs pnpm 10.x. The repository's GitHub Actions workflow now uses the same pnpm version and regenerates `pnpm-lock.yaml` when dependency metadata changes, then commits the regenerated lockfile with `[skip ci]` to prevent a workflow loop.
 
-### Phase 4 — Video-like scroll
-- Add sticky canvas image sequence.
-- Three-stage loading: poster/low-res -> nearby frames -> full sequence.
-- Use WebP/AVIF frames where supported and keep frame count/resolution device-aware.
-- Map scroll progress directly to frame index so reverse scrolling is exact.
+Until the synchronized lockfile is committed, Vercel uses `pnpm install --no-frozen-lockfile`. After the CI-generated lockfile is current, this can be tightened back to `--frozen-lockfile` for reproducible installs.
 
-### Phase 5 — Advanced interaction
-- Pointer parallax.
-- Raycast hover/selection.
-- Touch interaction.
-- Camera breathing and independent motion.
-- Optional gyroscope/device orientation on supported mobile devices.
+## Important resource preservation rule
 
-### Phase 6 — Production quality
-- Mobile quality tiers.
-- Reduced-motion fallback.
-- Error/loading states.
-- Performance telemetry in development.
-- Browser visual verification.
-- Vercel deployment.
+Do not delete an existing resource merely because it does not fit the new architecture directly. Prefer one of these integration paths:
+
+1. Mount the resource inside the shared primary canvas.
+2. Extract its useful choreography into a reusable controller while preserving the original component.
+3. Keep it as an alternate/reference implementation when running it directly would create duplicate infrastructure such as a second Canvas.
+4. Add an adapter layer so future assets can use the same timing/state interfaces.
+
+For this project, the MacBook GLBs are path (1), `Scene.tsx` is path (3), and its ScrollTrigger section/text concepts are reused through path (2).
+
+## Planned next integrations
+
+### Asset pipeline
+- Add `GLTFLoader`, Draco, Meshopt and KTX2/Basis support.
+- Add reusable scene asset adapters and disposal strategy.
+- Add local HDR assets where a stable environment is required.
+- Add LOD / responsive variants.
+
+### Film plate
+- Add production frame sequences to `public/sequences/`.
+- Use poster/low-resolution frame -> nearby frames -> full-sequence loading.
+- Use WebP/AVIF assets at device-aware resolutions.
+- Map scroll progress directly to frame index.
+
+### Interaction
+- Add raycast selection/hover.
+- Add richer touch gesture responses.
+- Add optional device orientation support only where it improves the experience and permissions are available.
+
+### Verification
+- Run `next build` through CI/Vercel.
+- Verify the page in a real browser and check for console errors.
+- Test reverse scrolling, anchor navigation, mobile breakpoints, reduced motion and fallback quality.
 
 ## Critical design rule
 Never make the entire experience one giant scroll-controlled animation. The premium effect comes from combining deterministic scroll choreography with autonomous real-time motion. The scene should still feel alive if the user stops scrolling.
