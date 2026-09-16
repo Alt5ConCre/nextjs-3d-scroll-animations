@@ -1,51 +1,32 @@
-"use client";
+'use client'
 
-import { Scene } from "@/components";
+import dynamic from 'next/dynamic'
+
+const CinematicEngine = dynamic(() => import('@/components/cinematic/CinematicEngine'), { ssr: false })
+
+const chapters = [
+  { eyebrow: '01 / ARRIVAL', title: 'A living canvas.', text: 'Scroll controls the cinematic journey while the artifact keeps moving on its own.' },
+  { eyebrow: '02 / MOTION', title: 'Two timelines. One scene.', text: 'The camera follows scroll progress. Rotation, particles, reflections and atmosphere run independently.' },
+  { eyebrow: '03 / DEPTH', title: 'Built for real 3D.', text: 'The engine is ready for GLB assets, PBR materials, HDR environments, shaders and compressed textures.' },
+  { eyebrow: '04 / PERFORMANCE', title: 'Cinematic without wasting frames.', text: 'Responsive DPR, lazy assets, mobile fallbacks and reduced-motion behavior are part of the foundation.' },
+]
 
 export default function Home() {
   return (
-    <main className="relative">
-      <section
-        id="hero"
-        className="h-screen flex items-end justify-center relative"
-      >
-        <div id="text-1" className="text-center mb-64 z-10">
-          <h1 className="text-8xl font-medium mb-5">Meet the MacBook Pro M4</h1>
-          <p className="text-4xl font-light text-gray-500">
-            Power re-imagined.
-          </p>
-        </div>
-      </section>
-      <section
-        id="section1"
-        className="h-screen flex items-center justify-start relative"
-      >
-        <div className="container mx-auto px-6">
-          <div id="text-2" className="max-w-lg opacity-0">
-            <h2 className="text-7xl font-medium mb-4">Retina Display</h2>
-            <p className="text-3xl font-light text-gray-500">
-              Razor-sharp text, breathtaking colors, and lifelike tones for an
-              immersive visual experience.
-            </p>
-          </div>
-        </div>
-      </section>
-      <section
-        id="section2"
-        className="h-screen flex items-center justify-end relative"
-      >
-        <div id="text-3" className="container mx-auto px-6 opacity-0">
-          <div className="max-w-lg ml-auto text-right">
-            <h2 className="text-7xl font-medium mb-4 text-gray-800">
-              Top of Class Performance
-            </h2>
-            <p className="text-3xl font-light text-gray-500">
-              Handle the most computationally intensive tasks with ease.
-            </p>
-          </div>
-        </div>
-      </section>
-      <Scene />
+    <main>
+      <CinematicEngine />
+      <div className="cinematic-ui">
+        <header className="topbar"><span>CINEMATIC ENGINE</span><span>SCROLL / INTERACT</span></header>
+        <section className="hero chapter">
+          <div><p className="eyebrow">NEXT-GEN WEBGL EXPERIENCE</p><h1>SCROLL THE<br />FILM. MOVE<br />THE WORLD.</h1><p className="lede">A reusable cinematic engine for super-realistic, interactive websites.</p></div>
+          <span className="scroll-cue">↓ SCROLL TO EXPLORE</span>
+        </section>
+        {chapters.map((chapter) => (
+          <section className="chapter content-chapter" key={chapter.eyebrow}>
+            <div><p className="eyebrow">{chapter.eyebrow}</p><h2>{chapter.title}</h2><p className="lede">{chapter.text}</p></div>
+          </section>
+        ))}
+      </div>
     </main>
-  );
+  )
 }
