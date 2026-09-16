@@ -1,16 +1,17 @@
 "use client";
 
+import type { MutableRefObject } from "react";
 import { useEffect } from "react";
 import Lenis from "lenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
-  CinematicScrollRuntime,
+  type CinematicScrollRuntime,
   setCinematicScroll,
 } from "@/lib/cinematic/scroll-state";
 
 export type CinematicDirectorProps = {
-  runtimeRef: React.MutableRefObject<CinematicScrollRuntime>;
+  runtimeRef: MutableRefObject<CinematicScrollRuntime>;
 };
 
 gsap.registerPlugin(ScrollTrigger);
