@@ -39,6 +39,11 @@ type DrawOptions = {
   scaleBoost: number;
 };
 
+type IdleCallbackWindow = Window & {
+  requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -91,38 +96,35 @@ export function ImageSequence({
     activeFramesRef.current = qualityFrames;
   }, [qualityFrames]);
 
-  const draw = useCallback(
-    (image: HTMLImageElement, options: DrawOptions) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const context = canvas.getContext("2d", { alpha: true });
-      if (!context) return;
+  const draw = useCallback((image: HTMLImageElement, options: DrawOptions) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext("2d", { alpha: true });
+    if (!context) return;
 
-      const { rect, dpr, fit: fitMode, offsetX, offsetY, scaleBoost } = options;
-      const renderDpr = Math.max(0.75, Math.min(2, dpr * scaleBoost));
-      const pixelWidth = Math.max(1, Math.round(rect.width * renderDpr));
-      const pixelHeight = Math.max(1, Math.round(rect.height * renderDpr));
+    const { rect, dpr, fit: fitMode, offsetX, offsetY, scaleBoost } = options;
+    const renderDpr = Math.max(0.75, Math.min(2, dpr * scaleBoost));
+    const pixelWidth = Math.max(1, Math.round(rect.width * renderDpr));
+    const pixelHeight = Math.max(1, Math.round(rect.height * renderDpr));
 
-      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-        canvas.width = pixelWidth;
-        canvas.height = pixelHeight;
-      }
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
 
-      context.setTransform(renderDpr, 0, 0, renderDpr, 0, 0);
-      context.clearRect(0, 0, rect.width, rect.height);
+    context.setTransform(renderDpr, 0, 0, renderDpr, 0, 0);
+    context.clearRect(0, 0, rect.width, rect.height);
 
-      const scale = fitMode === "contain"
-        ? Math.min(rect.width / image.width, rect.height / image.height)
-        : Math.max(rect.width / image.width, rect.height / image.height);
-      const width = image.width * scale;
-      const height = image.height * scale;
-      const x = (rect.width - width) / 2 + offsetX;
-      const y = (rect.height - height) / 2 + offsetY;
+    const scale = fitMode === "contain"
+      ? Math.min(rect.width / image.width, rect.height / image.height)
+      : Math.max(rect.width / image.width, rect.height / image.height);
+    const width = image.width * scale;
+    const height = image.height * scale;
+    const x = (rect.width - width) / 2 + offsetX;
+    const y = (rect.height - height) / 2 + offsetY;
 
-      context.drawImage(image, x, y, width, height);
-    },
-    []
-  );
+    context.drawImage(image, x, y, width, height);
+  }, []);
 
   const loadFrame = useCallback((index: number) => {
     const active = activeFramesRef.current;
@@ -183,7 +185,7 @@ export function ImageSequence({
       const phase = time * Math.PI * 2;
       const frequency = zone?.frequency ?? 0.25;
       const offsetX = Math.sin(phase * frequency) * (zone?.driftX ?? 0) + Math.sin(phase * 0.18) * amplitude;
-      const offsetY = Math.cos(phase * (zone?.frequency ?? 0.2)) * (zone?.driftY ?? 0);
+      const offsetY = Math.cos(phase * frequency) * (zone?.driftY ?? 0);
       const scaleBoost = 1 + Math.sin(phase * 0.24) * amplitude * 0.002;
       const low = isLowTier(quality, mobileBreakpoint);
 
@@ -246,6 +248,7 @@ export function ImageSequence({
     const stageThree = () => {
       if (disposed) return;
       onLoadStage?.(3);
+      const browser = window as IdleCallbackWindow;
       const pump = (deadline?: IdleDeadline) => {
         if (disposed) return;
         let added = 0;
@@ -258,8 +261,8 @@ export function ImageSequence({
           }
         }
         if (cursor < active.length) {
-          if ("requestIdleCallback" in window) {
-            idleId = window.requestIdleCallback(pump, { timeout: 250 });
+          if (browser.requestIdleCallback) {
+            idleId = browser.requestIdleCallback(pump, { timeout: 250 });
           } else {
             timerId = window.setTimeout(() => pump(), 16);
           }
@@ -274,12 +277,13 @@ export function ImageSequence({
       disposed = true;
       window.clearTimeout(stageTwo);
       window.clearTimeout(stageThreeDelay);
-      if (idleId != null && "cancelIdleCallback" in window) window.cancelIdleCallback(idleId);
+      const browser = window as IdleCallbackWindow;
+      if (idleId != null && browser.cancelIdleCallback) browser.cancelIdleCallback(idleId);
       if (timerId != null) window.clearTimeout(timerId);
       cache.clear();
       loading.clear();
     };
-  }, [activeFramesRef, backgroundBatch, frames.length, loadFrame, mobileBreakpoint, mobileFrameStep, onLoadStage, prefetchRadius, priority, progress, quality, qualityFrames]);
+  }, [backgroundBatch, frames.length, loadFrame, mobileBreakpoint, mobileFrameStep, onLoadStage, prefetchRadius, priority, progress, quality, qualityFrames]);
 
   useEffect(() => {
     const active = activeFramesRef.current;
