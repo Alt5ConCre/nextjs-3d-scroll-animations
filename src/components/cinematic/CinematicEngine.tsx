@@ -1,5 +1,6 @@
 "use client";
 
+import type { MutableRefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   AdaptiveDpr,
@@ -10,9 +11,13 @@ import {
   PerformanceMonitor,
   Sparkles,
 } from "@react-three/drei";
-import { EffectComposer, Bloom, Noise, Vignette } from "@react-three/postprocessing";
+import {
+  EffectComposer,
+  Bloom,
+  Noise,
+  Vignette,
+} from "@react-three/postprocessing";
 import { useEffect, useMemo, useRef, useState } from "react";
-import gsap from "gsap";
 import * as THREE from "three";
 import CinematicDirector from "./CinematicDirector";
 import { MacBook } from "../MacBook";
@@ -22,8 +27,8 @@ function ScrollCamera({
   runtimeRef,
   pointerRef,
 }: {
-  runtimeRef: React.MutableRefObject<CinematicScrollRuntime>;
-  pointerRef: React.MutableRefObject<{ x: number; y: number }>;
+  runtimeRef: MutableRefObject<CinematicScrollRuntime>;
+  pointerRef: MutableRefObject<{ x: number; y: number }>;
 }) {
   const { camera, performance } = useThree();
   const current = useRef(0);
@@ -68,7 +73,7 @@ function ScrollCamera({
 function HeroArtifact({
   pointerRef,
 }: {
-  pointerRef: React.MutableRefObject<{ x: number; y: number }>;
+  pointerRef: MutableRefObject<{ x: number; y: number }>;
 }) {
   const group = useRef<THREE.Group>(null);
   const ring = useRef<THREE.Mesh>(null);
@@ -144,27 +149,6 @@ function HeroArtifact({
   );
 }
 
-function CinematicPerformance() {
-  const [dpr, setDpr] = useState(1.6);
-
-  return (
-    <>
-      <PerformanceMonitor
-        factor={1}
-        bounds={(refreshRate) =>
-          refreshRate > 90 ? [50, 90] : [45, 60]
-        }
-        onChange={({ factor }) => {
-          setDpr(0.8 + factor * 1.2);
-        }}
-        onFallback={() => setDpr(0.8)}
-      />
-      <AdaptiveDpr />
-      <group userData={{ adaptiveDpr: dpr }} />
-    </>
-  );
-}
-
 export default function CinematicEngine() {
   const runtimeRef = useRef<CinematicScrollRuntime>({
     progress: 0,
@@ -174,6 +158,7 @@ export default function CinematicEngine() {
     time: 0,
   });
   const pointerRef = useRef({ x: 0, y: 0 });
+  const [dpr, setDpr] = useState(1.6);
 
   useEffect(() => {
     const onPointerMove = (event: PointerEvent) => {
@@ -190,7 +175,7 @@ export default function CinematicEngine() {
       <CinematicDirector runtimeRef={runtimeRef} />
       <div className="cinematic-canvas" aria-hidden="true">
         <Canvas
-          dpr={[1, 2]}
+          dpr={dpr}
           shadows
           camera={{ position: [0, 0.15, 5.8], fov: 38 }}
           gl={{
@@ -220,7 +205,11 @@ export default function CinematicEngine() {
 
           <HeroArtifact pointerRef={pointerRef} />
 
-          <group position={[1.65, -1.15, -1.05]} rotation={[0, -0.12, 0]} scale={0.72}>
+          <group
+            position={[1.65, -1.15, -1.05]}
+            rotation={[0, -0.12, 0]}
+            scale={0.72}
+          >
             <MacBook />
           </group>
           <ContactShadows
@@ -231,8 +220,19 @@ export default function CinematicEngine() {
             far={4.5}
           />
 
+          <PerformanceMonitor
+            factor={1}
+            bounds={(refreshRate) =>
+              refreshRate > 90 ? [50, 90] : [45, 60]
+            }
+            onChange={({ factor }) => {
+              setDpr(Math.min(2, Math.max(0.8, 0.8 + factor * 1.2)));
+            }}
+            onFallback={() => setDpr(0.8)}
+          />
+          <AdaptiveDpr />
+
           <ScrollCamera runtimeRef={runtimeRef} pointerRef={pointerRef} />
-          <CinematicPerformance />
 
           <EffectComposer multisampling={2}>
             <Bloom intensity={0.7} luminanceThreshold={1.05} mipmapBlur />
