@@ -77,7 +77,9 @@ function HeroArtifact({
 }) {
   const group = useRef<THREE.Group>(null);
   const ring = useRef<THREE.Mesh>(null);
-  const material = useRef<THREE.MeshPhysicalMaterial & { thickness: number }>(null);
+  // Drei's transmission material exposes a specialized ref type; keep the underlying
+  // Three.js material instance locally so the runtime thickness animation remains intact.
+  const material = useRef<THREE.MeshPhysicalMaterial | null>(null);
 
   useFrame((state, delta) => {
     if (!group.current) return;
@@ -114,7 +116,9 @@ function HeroArtifact({
         <mesh castShadow receiveShadow>
           <torusKnotGeometry args={[1.05, 0.24, 180, 32, 2, 3]} />
           <MeshTransmissionMaterial
-            ref={material}
+            ref={(instance) => {
+              material.current = instance as unknown as THREE.MeshPhysicalMaterial | null;
+            }}
             backside
             samples={8}
             resolution={512}
