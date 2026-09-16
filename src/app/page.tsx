@@ -8,7 +8,15 @@ const CinematicEngine = dynamic(
   { ssr: false }
 );
 
-const chapters = [
+type Chapter = {
+  id: string;
+  eyebrow: string;
+  title: string;
+  text: string;
+  textId?: string;
+};
+
+const chapters: Chapter[] = [
   {
     id: "section1",
     eyebrow: "01 / ARRIVAL",
@@ -36,7 +44,7 @@ const chapters = [
     title: "Cinematic without wasting frames.",
     text: "Adaptive DPR, reduced-motion behavior, lazy asset loading and mobile-aware quality keep the experience resilient.",
   },
-] as const;
+];
 
 export default function Home() {
   return (
@@ -75,7 +83,11 @@ export default function Home() {
             text={chapter.text}
           >
             {chapter.textId ? (
-              <span id={chapter.textId} className="chapter-anchor-copy" aria-hidden="true" />
+              <span
+                id={chapter.textId}
+                className="chapter-anchor-copy"
+                aria-hidden="true"
+              />
             ) : null}
           </CinematicChapter>
         ))}
