@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - scripts/render-house-media.py
+      - scripts/generate-house-glb.py
       - .github/workflows/generate-house-media.yml
 
 permissions:
@@ -25,14 +26,16 @@ jobs:
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Install render dependencies
-        run: python -m pip install pillow numpy
+        run: python -m pip install pillow numpy trimesh
+      - name: Generate architectural GLB
+        run: python scripts/generate-house-glb.py
       - name: Render 4K master and mobile chapter clips
         run: python scripts/render-house-media.py
-      - name: Commit generated media
+      - name: Commit generated media and model
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/house/poster.webp public/house/media/luxury-house-master-4k.mp4 public/house/mobile/*.mp4
+          git add public/house/poster.webp public/house/models/luxury-house-architectural.glb public/house/media/luxury-house-master-4k.mp4 public/house/mobile/*.mp4
           git diff --cached --quiet && exit 0
-          git commit -m "chore: add generated luxury house walkthrough media [skip ci]"
+          git commit -m "chore: add generated house walkthrough model and media [skip ci]"
           git push
