@@ -1,13 +1,14 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Preload, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { MutableRefObject } from "react";
 import type { CinematicScrollRuntime } from "@/lib/cinematic/scroll-state";
+import { HOUSE_SEQUENCE } from "./house-config";
 
-const MODEL_URL = "/house/models/luxury-house-architectural.glb";
+const MODEL_URL = HOUSE_SEQUENCE.model;
 
 type Waypoint = { progress: number; position: [number, number, number]; target: [number, number, number] };
 
@@ -98,16 +99,51 @@ function SceneContent({ runtimeRef, onReady }: { runtimeRef: MutableRefObject<Ci
 }
 
 export default function House3DScene({ runtimeRef, onReady }: { runtimeRef: MutableRefObject<CinematicScrollRuntime>; onReady: () => void }) {
+  const [mediaError, setMediaError] = useState(false);
+  const [modelReady, setModelReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const start = () => video.play().catch(() => undefined);
+    video.addEventListener("canplay", start);
+    start();
+    return () => video.removeEventListener("canplay", start);
+  }, []);
+
+  useEffect(() => {
+    if (modelReady) onReady();
+  }, [modelReady, onReady]);
+
   return (
     <div className="house-3d" aria-hidden="true">
+      <div className="house-3d__media" aria-hidden="true">
+        {!mediaError && (
+          <video
+            ref={videoRef}
+            className="house-3d__video"
+            muted
+            loop
+            autoPlay
+            playsInline
+            preload="auto"
+            poster={HOUSE_SEQUENCE.poster}
+            onError={() => setMediaError(true)}
+          >
+            <source src={HOUSE_SEQUENCE.desktopVideo} type="video/mp4" />
+          </video>
+        )}
+        <img className="house-3d__poster" src={HOUSE_SEQUENCE.poster} alt="" />
+      </div>
       <Canvas
         dpr={[1, 2]}
-        gl={{ antialias: true, powerPreference: "high-performance" }}
+        gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         camera={{ position: WAYPOINTS[0].position, fov: 38, near: 0.1, far: 100 }}
         shadows
       >
         <Suspense fallback={null}>
-          <SceneContent runtimeRef={runtimeRef} onReady={onReady} />
+          <SceneContent runtimeRef={runtimeRef} onReady={() => setModelReady(true)} />
         </Suspense>
       </Canvas>
       <div className="house-3d__vignette" />
