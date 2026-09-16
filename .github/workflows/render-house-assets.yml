@@ -1,0 +1,41 @@
+name: Render house media assets
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "public/house/media/luxury-house-master-4k.mp4"
+      - "scripts/render-house-assets.sh"
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Render desktop frames, 4K chapter stills, and mobile clips
+        run: bash scripts/render-house-assets.sh
+
+      - name: Upload 4K masters
+        uses: actions/upload-artifact@v4
+        with:
+          name: luxury-house-4k-masters
+          path: public/house/generated-4k/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Commit web assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/house/frames public/house/mobile public/house/stills public/house/poster.webp
+          if git diff --cached --quiet; then
+            echo "No asset changes to commit."
+          else
+            git commit -m "chore: render house walkthrough web assets"
+            git push
+          fi
