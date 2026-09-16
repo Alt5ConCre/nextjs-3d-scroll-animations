@@ -68,7 +68,7 @@ export function VideoScrubber({
           try {
             video.currentTime = clamp(next, 0, video.duration);
           } catch {
-            // Media may not be seekable until the browser has buffered metadata/ranges.
+            // Media may not be seekable until metadata/ranges are ready.
           }
         }
       }
@@ -90,7 +90,7 @@ export function VideoScrubber({
       loop={loop}
       playsInline
       controls={false}
-      onError={onError}
+      onError={(event) => onError?.(event.nativeEvent)}
       aria-hidden="true"
       className={className}
       style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }}
