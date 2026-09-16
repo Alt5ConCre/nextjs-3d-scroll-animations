@@ -1,36 +1,34 @@
 import "./globals.css";
+import type { ReactNode } from "react";
 import Link from "next/link";
+
+const navigation = [
+  ["01", "#section1"],
+  ["02", "#section2"],
+  ["03", "#section3"],
+  ["04", "#section4"],
+] as const;
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen" suppressHydrationWarning>
-        <nav className="sticky top-0 z-50 bg-white bg-opacity-80 backdrop-blur-md shadow-md">
-          <div className="container mx-auto px-6 py-3">
-            <div className="flex justify-between items-center">
-              <Link href="/" className="text-xl text-gray-800">
-                Apple
+      <body suppressHydrationWarning>
+        <nav className="cinematic-nav" aria-label="Cinematic chapters">
+          <Link href="#" className="cinematic-brand" aria-label="Cinematic Engine home">
+            CINEMATIC ENGINE
+          </Link>
+          <div className="cinematic-nav-links">
+            {navigation.map(([label, href]) => (
+              <Link key={href} href={href}>
+                {label}
               </Link>
-              <div className="hidden md:flex space-x-4">
-                <Link href="#" className="text-gray-600 hover:text-gray-900">
-                  Shop
-                </Link>
-                <Link href="#" className="text-gray-600 hover:text-gray-900">
-                  Support
-                </Link>
-                <Link href="#" className="text-gray-600 hover:text-gray-900">
-                  About
-                </Link>
-                <Link href="#" className="text-gray-600 hover:text-gray-900">
-                  Contact
-                </Link>
-              </div>
-            </div>
+            ))}
           </div>
+          <span className="cinematic-nav-status">LIVE / WEBGL</span>
         </nav>
         {children}
       </body>
