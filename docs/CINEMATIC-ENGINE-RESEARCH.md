@@ -57,6 +57,23 @@ Use the image-sequence technique when the visual must look like a pre-rendered f
 https://github.com/tangyistudio/scroll-frame-sequence
 Reference for scroll-as-frame architecture and multi-stage asset loading. Use the concept, not copied code.
 
+### 9. Scroll-video / Apple-style scrubbing reference set
+See `docs/CINEMATIC-SCROLL-VIDEO-REFERENCES.md` for the expanded reference list. Priority references include:
+- https://github.com/dkaoster/scrolly-video — React/JS scrolly video, external progress to video time, Canvas/WebCodecs plus HTML5 fallback. MIT licensed.
+- https://github.com/btahir/react-kino — React VideoScroll / currentTime-based product narrative reference.
+- https://github.com/tangyistudio/scroll-frame-sequence — deterministic scroll-to-frame player with loading tiers and mobile modes.
+- https://github.com/FelixVerdianto17/canvas-scroll-sequence — Next.js + Lenis + Canvas frame sequence.
+- https://github.com/Relaxkartikey/prior-gsap-animation-portfolio-website-template — GSAP + Canvas frame scrub + video transitions.
+- https://github.com/abhijeet-builds/neverland-agency — vanilla Canvas/WebP frame sequence.
+- https://github.com/KubeezMedia/kubeez-scroll-world-video — chained video clips controlled through currentTime.
+- https://github.com/Heramb1221/shingeki — React + GSAP + video currentTime cinematic reference.
+- https://github.com/azhagan-creator/sih-26 — vanilla JS + GSAP currentTime mapping and fallback imagery.
+- https://github.com/itsjwill/motion-primitives-website — Next.js + GSAP + reusable Canvas ImageSequenceScroll reference.
+- https://github.com/danhnm1203/scrollytelling — video-to-frame tooling/reference.
+- https://github.com/mattseq/how-to-scrollytell — practical GSAP currentTime and Canvas sequence comparison.
+
+Use this set as technical references, not as a replacement for the existing engine. The preferred implementation remains a Canvas frame sequence for exact scrub/reverse behavior, with real-video currentTime/WebCodecs as an optional secondary path.
+
 ## Chosen architecture
 
 ### Layer A — Cinematic Director
@@ -123,6 +140,7 @@ For this project, the MacBook GLBs are path (1), `Scene.tsx` is path (3), and it
 - Use poster/low-resolution frame -> nearby frames -> full-sequence loading.
 - Use WebP/AVIF assets at device-aware resolutions.
 - Map scroll progress directly to frame index.
+- Add optional real-video scrubbing adapter using `currentTime`; use Canvas/WebCodecs where beneficial and retain HTML5 fallback.
 
 ### Interaction
 - Add raycast selection/hover.
