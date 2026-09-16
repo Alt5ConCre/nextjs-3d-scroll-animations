@@ -1,9 +1,16 @@
 import type { NextConfig } from "next";
 
+const isGitHubPages = process.env.GITHUB_ACTIONS === "true";
+const basePath = isGitHubPages ? "/nextjs-3d-scroll-animations" : "";
+
 const nextConfig: NextConfig = {
-  basePath: "/nextjs-3d-scroll-animations",
-  publicRuntimeConfig: {
-    basePath: "/nextjs-3d-scroll-animations",
+  output: "export",
+  basePath,
+  env: {
+    NEXT_PUBLIC_BASE_PATH: basePath,
+  },
+  images: {
+    unoptimized: true,
   },
 };
 
