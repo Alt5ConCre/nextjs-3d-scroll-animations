@@ -12,6 +12,7 @@ export type HouseChapter = {
 export const HOUSE_SEQUENCE = {
   desktopVideo: "/house/media/luxury-house-master-4k.mp4",
   poster: "/house/poster.webp",
+  model: "/house/models/luxury-house-architectural.glb",
   desktopMinWidth: 769,
   scrollHeightVh: 760,
 };
