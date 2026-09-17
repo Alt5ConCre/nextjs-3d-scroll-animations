@@ -25,18 +25,18 @@ export const HOUSE_SEQUENCE = {
   scrollHeightVh: 760,
 };
 
-// Research-backed cutaways. Desktop remains the real-time GLB experience;
-// these clips are used by the mobile chapter cards and are intentionally
-// external for the experiment so large binaries are not committed to Git.
+// Vercel Blob hosts the large mobile cutaways so video binaries stay out of Git.
+// Desktop remains the real-time GLB experience; these clips power the mobile
+// chapter cards without changing the existing 3D cinematic sequence.
 export const HOUSE_MEDIA_REFERENCES: HouseMediaReference[] = [
-  { chapterId: "exterior-arrival", source: "Pexels", sourcePage: "https://www.pexels.com/video/aerial-view-of-luxury-and-modern-design-home-17224719/", videoUrl: "https://videos.pexels.com/video-files/17224719/17224719-uhd_3840_2160_30fps.mp4", purpose: "Modern luxury-home aerial approach and exterior reveal." },
-  { chapterId: "foyer", source: "Pexels", sourcePage: "https://www.pexels.com/video/a-modern-staircase-design-7239156/", videoUrl: "https://videos.pexels.com/video-files/7239156/7239156-uhd_3840_2160_25fps.mp4", purpose: "Architectural staircase and entry transition." },
-  { chapterId: "living", source: "Pexels", sourcePage: "https://www.pexels.com/video/modern-house-interior-5744424/", videoUrl: "https://videos.pexels.com/video-files/5744424/5744424-uhd_3840_2160_30fps.mp4", purpose: "Warm modern living room with glazing, greenery and neutral materials." },
-  { chapterId: "kitchen", source: "Pexels", sourcePage: "https://www.pexels.com/video/modern-kitchen-interior-design-15887128/", videoUrl: "https://videos.pexels.com/video-files/15887128/15887128-uhd_3840_2160_30fps.mp4", purpose: "Bright modern kitchen with large island and architectural lighting." },
-  { chapterId: "dining-patio", source: "Pexels", sourcePage: "https://www.pexels.com/video/modern-luxury-house-with-infinity-pool-view-32456138/", videoUrl: "https://videos.pexels.com/video-files/32456138/13842188_3840_2160_60fps.mp4", purpose: "Luxury residence, patio, pool and garden connection." },
-  { chapterId: "primary-suite", source: "Pexels", sourcePage: "https://www.pexels.com/video/cozy-modern-bedroom-interior-with-soft-lighting-35364127/", videoUrl: "https://videos.pexels.com/video-files/35364127/14983714_3840_2160_25fps.mp4", purpose: "16:9 warm modern bedroom suitable for the quiet-luxury suite chapter." },
-  { chapterId: "bath-terrace", source: "Pexels", sourcePage: "https://www.pexels.com/video/modern-hotel-bathroom-interior-with-sink-and-mirror-29455653/", videoUrl: "https://videos.pexels.com/video-files/29455653/12679960_3840_2160_25fps.mp4", purpose: "4K modern bathroom detail; terrace remains a separate exterior beat in the desktop GLB sequence." },
-  { chapterId: "private-tour", source: "Pexels", sourcePage: "https://www.pexels.com/video/an-aerial-view-of-a-house-with-a-pool-and-a-garden-28448027/", videoUrl: "https://videos.pexels.com/video-files/28448027/12385951_3840_2160_30fps.mp4", purpose: "Single-villa aerial closing reveal with pool and terrace." },
+  { chapterId: "exterior-arrival", source: "Pexels", sourcePage: "https://www.pexels.com/video/aerial-view-of-luxury-and-modern-design-home-17224719/", videoUrl: "https://67ynp4dqdqi5qa17.public.blob.vercel-storage.com/house/real-estate/01-arrival-ETiiPlpT2xdwPOyx4psvKsk04qYv44.mp4", purpose: "Modern luxury-home aerial approach and exterior reveal." },
+  { chapterId: "foyer", source: "Pexels", sourcePage: "https://www.pexels.com/video/a-modern-staircase-design-7239156/", videoUrl: "https://67ynp4dqdqi5qa17.public.blob.vercel-storage.com/house/real-estate/02-foyer.mp4", purpose: "Architectural staircase and entry transition." },
+  { chapterId: "living", source: "Pexels", sourcePage: "https://www.pexels.com/video/modern-house-interior-5744424/", videoUrl: "https://67ynp4dqdqi5qa17.public.blob.vercel-storage.com/house/real-estate/03-living.mp4", purpose: "Warm modern living room with glazing, greenery and neutral materials." },
+  { chapterId: "kitchen", source: "Pexels", sourcePage: "https://www.pexels.com/video/a-couple-checking-out-kitchen-cabinet-designs-4824593/", videoUrl: "https://67ynp4dqdqi5qa17.public.blob.vercel-storage.com/house/real-estate/04-kitchen.mp4", purpose: "Modern kitchen cabinetry and island-focused design reference." },
+  { chapterId: "dining-patio", source: "Pexels", sourcePage: "https://www.pexels.com/video/modern-luxury-house-with-infinity-pool-view-32456138/", videoUrl: "https://67ynp4dqdqi5qa17.public.blob.vercel-storage.com/house/real-estate/05-dining-patio.mp4", purpose: "Luxury residence, patio, pool and garden connection." },
+  { chapterId: "primary-suite", source: "Pexels", sourcePage: "https://www.pexels.com/video/cozy-modern-bedroom-interior-with-soft-lighting-35364127/", videoUrl: "https://67ynp4dqdqi5qa17.public.blob.vercel-storage.com/house/real-estate/06-primary-suite.mp4", purpose: "Warm modern bedroom suitable for the quiet-luxury suite chapter." },
+  { chapterId: "bath-terrace", source: "Pexels", sourcePage: "https://www.pexels.com/video/video-of-a-luxurious-bathroom-7578551/", videoUrl: "https://67ynp4dqdqi5qa17.public.blob.vercel-storage.com/house/real-estate/07-bathroom.mp4", purpose: "Luxury bathroom detail; terrace remains a separate exterior beat in the desktop GLB sequence." },
+  { chapterId: "private-tour", source: "Pexels", sourcePage: "https://www.pexels.com/video/aerial-footage-of-a-villa-8960469/", videoUrl: "https://67ynp4dqdqi5qa17.public.blob.vercel-storage.com/house/real-estate/08-private-tour.mp4", purpose: "Single-villa aerial closing reveal with pool and terrace." },
 ];
 
 const MEDIA_BY_CHAPTER = Object.fromEntries(
