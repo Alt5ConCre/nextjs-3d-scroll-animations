@@ -17,8 +17,9 @@ function PhotorealBurger({ progress }: { progress: number }) {
     const action = actions?.["BurgerAction"] ?? Object.values(actions ?? {})[0];
     if (!action) return;
     action.reset();
+    action.setLoop(THREE.LoopOnce, 1);
+    action.clampWhenFinished = true;
     action.play();
-    action.paused = true;
     return () => action.stop();
   }, [actions]);
 
@@ -40,8 +41,7 @@ function PhotorealBurger({ progress }: { progress: number }) {
     if (!root.current) return;
     const action = actions?.["BurgerAction"] ?? Object.values(actions ?? {})[0];
     if (action && action.getClip().duration > 0) {
-      action.time = THREE.MathUtils.clamp(progress, 0, 1) * action.getClip().duration;
-      mixer.update(0);
+      mixer.setTime(THREE.MathUtils.clamp(progress, 0, 1) * action.getClip().duration);
     }
 
     root.current.rotation.y = THREE.MathUtils.damp(
