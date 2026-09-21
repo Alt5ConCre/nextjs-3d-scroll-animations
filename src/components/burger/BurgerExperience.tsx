@@ -20,7 +20,9 @@ function PhotorealBurger({ progress }: { progress: number }) {
     action.setLoop(THREE.LoopOnce, 1);
     action.clampWhenFinished = true;
     action.play();
-    return () => {\n      action.stop();\n    };
+    return () => {
+      action.stop();
+    };
   }, [actions]);
 
   useEffect(() => {
