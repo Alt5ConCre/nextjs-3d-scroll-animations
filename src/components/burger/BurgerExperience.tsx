@@ -1,7 +1,7 @@
 "use client";
 
 import {Canvas,useFrame} from "@react-three/fiber";
-import {ContactShadows,Environment,Float,PerspectiveCamera,PresentationControls,Stage,useGLTF,Loader} from "@react-three/drei";
+import {ContactShadows,Environment,Float,PerspectiveCamera,useGLTF,Loader} from "@react-three/drei";
 import {EffectComposer,Bloom,Vignette,Noise} from "@react-three/postprocessing";
 import {Suspense,useEffect,useMemo,useRef,useState} from "react";
 import * as THREE from "three";
@@ -13,14 +13,17 @@ function PhotorealBurger({progress}:{progress:number}){
   const {scene}=useGLTF(MODEL);
   const model=useMemo(()=>{
     const clone=scene.clone(true);
-    clone.traverse((o:any)=>{
-      if(o.isMesh){
-        o.castShadow=true;o.receiveShadow=true;
-        const mats=Array.isArray(o.material)?o.material:[o.material];
-        mats.forEach((m:any)=>{
-          if(m){
-            if("roughness" in m)m.roughness=Math.min(.82,Math.max(.2,m.roughness??.5));
-            if("envMapIntensity" in m)m.envMapIntensity=1.35;
+    clone.traverse((child)=>{
+      if(child instanceof THREE.Mesh){
+        child.castShadow=true;
+        child.receiveShadow=true;
+        const materials=Array.isArray(child.material)?child.material:[child.material];
+        materials.forEach((material)=>{
+          if("roughness" in material && typeof material.roughness==="number"){
+            material.roughness=Math.min(.82,Math.max(.2,material.roughness));
+          }
+          if("envMapIntensity" in material && typeof material.envMapIntensity==="number"){
+            material.envMapIntensity=1.35;
           }
         });
       }
@@ -29,8 +32,10 @@ function PhotorealBurger({progress}:{progress:number}){
   },[scene]);
 
   const parts=useMemo(()=>{
-    const list:THREE.Object3D[]=[];
-    model.traverse(o=>{if((o as THREE.Mesh).isMesh)list.push(o)});
+    const list:THREE.Mesh[]=[];
+    model.traverse((child)=>{
+      if(child instanceof THREE.Mesh)list.push(child);
+    });
     return list.map((o,i)=>({o,base:o.position.clone(),i}));
   },[model]);
 
