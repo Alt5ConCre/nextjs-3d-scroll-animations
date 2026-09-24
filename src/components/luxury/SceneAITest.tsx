@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer, Bloom, Noise, Vignette, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
@@ -41,7 +42,8 @@ function chapterFor(progress: number) {
 }
 
 function House({ onReady }: { onReady: (box: THREE.Box3) => void }) {
-  const { scene } = useGLTF(HOUSE_MODEL);
+  const { scene: sourceScene } = useGLTF(HOUSE_MODEL);
+  const scene = useMemo(() => sourceScene.clone(true), [sourceScene]);
   const group = useRef<THREE.Group>(null);
 
   useEffect(() => {
@@ -156,10 +158,10 @@ function CameraDirector({
 }
 
 function ArchitecturalScene({
-  progress,
+  scrollTarget,
   onReady,
 }: {
-  progress: number;
+  scrollTarget: React.MutableRefObject<number>;
   onReady: (box: THREE.Box3) => void;
 }) {
   const [bounds, setBounds] = useState<THREE.Box3 | null>(null);
@@ -199,7 +201,7 @@ function ArchitecturalScene({
         />
       </Suspense>
 
-      <CameraDirector progress={progress} bounds={bounds} />
+      <CameraDirector progress={scrollTarget.current} bounds={bounds} />
       <CinematicGrade />
       <Preload all />
     </>
@@ -222,7 +224,6 @@ export default function SceneAITest() {
 
     const tick = () => {
       current.current = THREE.MathUtils.damp(current.current, target.current, 7, 1 / 60);
-      setProgress(current.current);
       raf.current = requestAnimationFrame(tick);
     };
 
@@ -238,6 +239,17 @@ export default function SceneAITest() {
     };
   }, []);
 
+  useEffect(() => {
+    let frame = 0;
+    const syncChapter = () => {
+      const next = chapterFor(current.current);
+      setProgress((prev) => prev === Number(next.at.toFixed(2)) ? prev : current.current);
+      frame = requestAnimationFrame(syncChapter);
+    };
+    frame = requestAnimationFrame(syncChapter);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   const chapter = chapterFor(progress);
 
   return (
@@ -250,7 +262,7 @@ export default function SceneAITest() {
           dpr={[1, 1.75]}
           onCreated={() => setLoaded(true)}
         >
-          <ArchitecturalScene progress={progress} onReady={setBounds} />
+          <ArchitecturalScene scrollTarget={target} onReady={setBounds} />
         </Canvas>
       </div>
 
