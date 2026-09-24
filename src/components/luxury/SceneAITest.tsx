@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer, Bloom, Noise, Vignette, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
@@ -164,10 +164,10 @@ function ArchitecturalScene({
 }) {
   const [bounds, setBounds] = useState<THREE.Box3 | null>(null);
 
-  const handleReady = (box: THREE.Box3) => {
+  const handleReady = useCallback((box: THREE.Box3) => {
     setBounds(box);
     onReady(box);
-  };
+  }, [onReady]);
 
   return (
     <>
