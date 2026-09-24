@@ -171,30 +171,37 @@ function CameraRig({
       new THREE.Vector3(center.x + x * radius, center.y + y * height, center.z + z * radius);
 
     return [
-      // Exterior arrival: wide, low and slow.
+      // Exterior arrival.
       { position: p(2.25, 0.72, 2.45), target: t(0, 0.02, 0) },
       { position: p(1.62, 0.48, 1.72), target: t(0.06, 0.05, 0) },
-      // Threshold: camera crosses the facade instead of stopping outside.
+
+      // Cross the threshold, then stay close to the center of the floor plan.
+      // The previous interior path used very large +/-0.6 to +/-0.9 offsets;
+      // those can place the camera inside perimeter walls rather than in rooms.
       { position: p(0.72, 0.30, 0.82), target: t(0.02, 0.10, 0.02) },
-      { position: p(0.20, 0.18, 0.36), target: t(-0.10, 0.12, -0.18) },
-      // Enter the living room and hold the eye-line longer.
-      { position: p(-0.28, 0.16, -0.12), target: t(-0.10, 0.16, -0.62) },
-      { position: p(-0.62, 0.20, -0.72), target: t(0.28, 0.18, -0.58) },
-      // Continue across the other side of the living room.
-      { position: p(0.34, 0.18, -0.82), target: t(0.68, 0.18, -0.38) },
-      { position: p(0.78, 0.20, -0.48), target: t(0.30, 0.20, 0.02) },
-      // Turn deeper into the residence for a bedroom reveal.
-      { position: p(0.82, 0.22, 0.10), target: t(0.30, 0.20, 0.72) },
-      { position: p(0.28, 0.20, 0.68), target: t(-0.18, 0.20, 0.86) },
-      { position: p(-0.12, 0.20, 0.92), target: t(-0.52, 0.20, 0.58) },
-      // Bedroom exit: reverse through the living room instead of teleporting.
-      { position: p(0.18, 0.18, 0.56), target: t(0.52, 0.18, -0.12) },
-      { position: p(0.56, 0.18, -0.30), target: t(-0.18, 0.18, -0.66) },
+      { position: p(0.25, 0.18, 0.28), target: t(-0.04, 0.14, -0.18) },
+
+      // Living room: wide eye-line, then a lateral reveal toward the other side.
+      { position: p(-0.08, 0.16, -0.10), target: t(-0.04, 0.15, -0.48) },
+      { position: p(0.12, 0.17, -0.24), target: t(0.42, 0.16, -0.22) },
+      { position: p(0.28, 0.18, -0.04), target: t(0.56, 0.17, 0.20) },
+
+      // Move through the interior opening instead of aiming through a wall.
+      { position: p(0.20, 0.18, 0.18), target: t(0.38, 0.18, 0.46) },
+      { position: p(0.06, 0.19, 0.34), target: t(-0.18, 0.19, 0.52) },
+
+      // Bedroom reveal: enter the room, then show the room from a second angle.
+      { position: p(-0.10, 0.19, 0.40), target: t(-0.30, 0.19, 0.34) },
+      { position: p(-0.24, 0.19, 0.32), target: t(-0.34, 0.20, 0.02) },
+
+      // Return through the opening and show the opposite side of the living room.
+      { position: p(-0.08, 0.18, 0.24), target: t(0.26, 0.17, -0.18) },
+      { position: p(0.10, 0.17, 0.02), target: t(-0.34, 0.16, -0.30) },
+
       // Interior-to-exterior transition and final hero frame.
-      { position: p(0.42, 0.34, 0.48), target: t(0, 0.08, 0) },
+      { position: p(0.30, 0.28, 0.26), target: t(0, 0.08, 0) },
       { position: p(2.05, 0.86, 2.20), target: t(0, 0.02, 0) },
-    ];
-  }, [bounds]);
+    ];  }, [bounds]);
 
   const a = useRef(new THREE.Vector3());
   const b = useRef(new THREE.Vector3());
