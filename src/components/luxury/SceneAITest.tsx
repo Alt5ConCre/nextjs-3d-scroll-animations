@@ -91,16 +91,20 @@ class PostFXBoundary extends React.Component<
 function CinematicGrade() {
   return (
     <PostFXBoundary>
-      <EffectComposer multisampling={0}>
-        <Bloom luminanceThreshold={1.05} mipmapBlur intensity={0.12} radius={0.5} />
-        <Noise premultiply opacity={0.018} />
-        <Vignette eskil={false} offset={0.22} darkness={0.62} />
+      <EffectComposer multisampling={0} frameBufferType={THREE.HalfFloatType}>
+        <Bloom
+          luminanceThreshold={1.15}
+          luminanceSmoothing={0.55}
+          intensity={0.08}
+          radius={0.35}
+          mipmapBlur
+        />
+        <Noise premultiply opacity={0.012} />
+        <Vignette eskil={false} offset={0.28} darkness={0.48} />
       </EffectComposer>
     </PostFXBoundary>
   );
-}
-
-function CameraDirector({
+}\n\nfunction CameraDirector({
   scrollTarget,
   bounds,
 }: {
