@@ -152,9 +152,27 @@ function CameraRig({
   bounds: THREE.Box3 | null;
   uiRef: React.MutableRefObject<HTMLDivElement | null>;
 }) {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
   const scroll = useScroll();
   const smoothed = useRef(0);
+  const pointer = useRef(new THREE.Vector2());
+  const pointerSmooth = useRef(new THREE.Vector2());
+
+  useEffect(() => {
+    const element = gl.domElement;
+    const onMove = (event: PointerEvent) => {
+      const rect = element.getBoundingClientRect();
+      pointer.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.current.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+    };
+    const onLeave = () => pointer.current.set(0, 0);
+    element.addEventListener("pointermove", onMove);
+    element.addEventListener("pointerleave", onLeave);
+    return () => {
+      element.removeEventListener("pointermove", onMove);
+      element.removeEventListener("pointerleave", onLeave);
+    };
+  }, [gl]);
 
   const waypoints = useMemo<Waypoint[]>(() => {
     const b =
@@ -170,42 +188,53 @@ function CameraRig({
     const t = (x = 0, y = 0, z = 0) =>
       new THREE.Vector3(center.x + x * radius, center.y + y * height, center.z + z * radius);
 
+    // Keep interior camera positions well inside the footprint. The previous
+    // path used footprint-scaled coordinates for every waypoint, which could
+    // put the camera beside/inside perimeter walls. These interior coordinates
+    // are intentionally compact and use wide look targets to reveal rooms.
+    const ix = radius * 0.34;
+    const iz = radius * 0.34;
+    const floorY = center.y - height * 0.16;
+    const eyeY = floorY + height * 0.22;
+    const interior = (x: number, z: number, y = 0) =>
+      new THREE.Vector3(center.x + x * ix, eyeY + y * height, center.z + z * iz);
+    const look = (x: number, z: number, y = 0.02) =>
+      new THREE.Vector3(center.x + x * radius * 0.52, eyeY + y * height, center.z + z * radius * 0.52);
+
     return [
-      // Exterior arrival.
       { position: p(2.25, 0.72, 2.45), target: t(0, 0.02, 0) },
       { position: p(1.62, 0.48, 1.72), target: t(0.06, 0.05, 0) },
 
-      // Cross the threshold, then stay close to the center of the floor plan.
-      // The previous interior path used very large +/-0.6 to +/-0.9 offsets;
-      // those can place the camera inside perimeter walls rather than in rooms.
-      { position: p(0.72, 0.30, 0.82), target: t(0.02, 0.10, 0.02) },
-      { position: p(0.25, 0.18, 0.28), target: t(-0.04, 0.14, -0.18) },
+      // Threshold.
+      { position: interior(0.72, 0.72), target: look(0.15, 0.18) },
+      { position: interior(0.20, 0.18), target: look(-0.25, -0.05) },
 
-      // Living room: wide eye-line, then a lateral reveal toward the other side.
-      { position: p(-0.08, 0.16, -0.10), target: t(-0.04, 0.15, -0.48) },
-      { position: p(0.12, 0.17, -0.24), target: t(0.42, 0.16, -0.22) },
-      { position: p(0.28, 0.18, -0.04), target: t(0.56, 0.17, 0.20) },
+      // Living room: stay central and rotate across both sides.
+      { position: interior(0.02, -0.02), target: look(0.55, -0.08, 0.04) },
+      { position: interior(0.02, -0.02), target: look(-0.55, -0.08, 0.04) },
+      { position: interior(0.04, -0.02), target: look(-0.48, 0.40, 0.03) },
 
-      // Move through the interior opening instead of aiming through a wall.
-      { position: p(0.20, 0.18, 0.18), target: t(0.38, 0.18, 0.46) },
-      { position: p(0.06, 0.19, 0.34), target: t(-0.18, 0.19, 0.52) },
+      // Other side / interior opening.
+      { position: interior(-0.18, 0.10), target: look(0.48, 0.35, 0.03) },
+      { position: interior(0.18, 0.18), target: look(-0.42, 0.48, 0.04) },
 
-      // Bedroom reveal: enter the room, then show the room from a second angle.
-      { position: p(-0.10, 0.19, 0.40), target: t(-0.30, 0.19, 0.34) },
-      { position: p(-0.24, 0.19, 0.32), target: t(-0.34, 0.20, 0.02) },
+      // Bedroom reveal.
+      { position: interior(-0.24, 0.30), target: look(-0.48, 0.55, 0.02) },
+      { position: interior(-0.34, 0.36), target: look(-0.12, 0.62, 0.02) },
+      { position: interior(-0.24, 0.28), target: look(0.45, 0.42, 0.03) },
 
-      // Return through the opening and show the opposite side of the living room.
-      { position: p(-0.08, 0.18, 0.24), target: t(0.26, 0.17, -0.18) },
-      { position: p(0.10, 0.17, 0.02), target: t(-0.34, 0.16, -0.30) },
+      // Return through living room, showing the opposite axis.
+      { position: interior(0.00, 0.16), target: look(0.52, -0.45, 0.03) },
+      { position: interior(0.08, -0.04), target: look(-0.52, -0.42, 0.03) },
+      { position: interior(0.46, 0.20), target: look(0, 0, 0.05) },
 
-      // Interior-to-exterior transition and final hero frame.
-      { position: p(0.30, 0.28, 0.26), target: t(0, 0.08, 0) },
       { position: p(2.05, 0.86, 2.20), target: t(0, 0.02, 0) },
     ];  }, [bounds]);
 
   const a = useRef(new THREE.Vector3());
   const b = useRef(new THREE.Vector3());
-  const target = useRef(new THREE.Vector3());
+  const hoverPosition = useRef(new THREE.Vector3());
+  const hoverTarget = useRef(new THREE.Vector3());
 
   useFrame((_, delta) => {
     smoothed.current = THREE.MathUtils.damp(smoothed.current, scroll.offset, 6.5, delta);
@@ -217,9 +246,23 @@ function CameraRig({
     a.current.lerpVectors(waypoints[index].position, waypoints[index + 1].position, local);
     b.current.lerpVectors(waypoints[index].target, waypoints[index + 1].target, local);
 
-    const follow = 1 - Math.exp(-10 * delta);
-    camera.position.lerp(a.current, follow);
-    camera.lookAt(b.current);
+    pointerSmooth.current.x = THREE.MathUtils.damp(pointerSmooth.current.x, pointer.current.x, 7, delta);
+    pointerSmooth.current.y = THREE.MathUtils.damp(pointerSmooth.current.y, pointer.current.y, 7, delta);
+
+    // Hover controls the house view with a restrained cinematic parallax.
+    // Scroll remains the primary movement; hover adds orientation/position.
+    const hx = pointerSmooth.current.x;
+    const hy = pointerSmooth.current.y;
+    const interiorWeight = smoothed.current > 0.12 && smoothed.current < 0.88 ? 1 : 0.55;
+    hoverPosition.current.set(hx * 0.34 * interiorWeight, hy * 0.12 * interiorWeight, -hx * 0.16 * interiorWeight);
+    hoverTarget.current.set(hx * 0.22, hy * 0.10, hx * 0.08);
+
+    const desiredPosition = a.current.clone().add(hoverPosition.current);
+    const desiredTarget = b.current.clone().add(hoverTarget.current);
+
+    const follow = 1 - Math.exp(-8 * delta);
+    camera.position.lerp(desiredPosition, follow);
+    camera.lookAt(desiredTarget);
 
     if (uiRef.current) {
       const value = smoothed.current;
@@ -295,7 +338,7 @@ export default function FreshLuxuryHouse() {
         <Canvas
           shadows
           dpr={[1, 1.25]}
-          camera={{ fov: 35, near: 0.018, far: 100 }}
+          camera={{ fov: 42, near: 0.018, far: 100 }}
           gl={{ antialias: true, powerPreference: "default", alpha: false }}
           onCreated={({ gl }) => {
             gl.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
