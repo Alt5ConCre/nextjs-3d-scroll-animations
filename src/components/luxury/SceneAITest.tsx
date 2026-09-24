@@ -86,10 +86,10 @@ function CinematicGrade() {
 }
 
 function CameraDirector({
-  progress,
+  scrollTarget,
   bounds,
 }: {
-  progress: number;
+  scrollTarget: React.MutableRefObject<number>;
   bounds: THREE.Box3 | null;
 }) {
   const { camera } = useThree();
@@ -134,7 +134,7 @@ function CameraDirector({
   }, [bounds]);
 
   useFrame((_, delta) => {
-    smoothed.current = THREE.MathUtils.damp(smoothed.current, progress, 7, delta);
+    smoothed.current = THREE.MathUtils.damp(smoothed.current, scrollTarget.current, 7, delta);
 
     const scaled = smoothed.current * (waypoints.length - 1);
     const i = Math.min(waypoints.length - 2, Math.max(0, Math.floor(scaled)));
@@ -201,7 +201,7 @@ function ArchitecturalScene({
         />
       </Suspense>
 
-      <CameraDirector progress={scrollTarget.current} bounds={bounds} />
+      <CameraDirector scrollTarget={scrollTarget} bounds={bounds} />
       <CinematicGrade />
       <Preload all />
     </>
@@ -217,36 +217,21 @@ export default function SceneAITest() {
   const raf = useRef<number | null>(null);
 
   useEffect(() => {
-    const update = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      target.current = max > 0 ? THREE.MathUtils.clamp(window.scrollY / max, 0, 1) : 0;
-    };
-
-    const tick = () => {
-      current.current = THREE.MathUtils.damp(current.current, target.current, 7, 1 / 60);
-      raf.current = requestAnimationFrame(tick);
-    };
-
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    raf.current = requestAnimationFrame(tick);
-
-    return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      if (raf.current) cancelAnimationFrame(raf.current);
-    };
-  }, []);
-
-  useEffect(() => {
     let frame = 0;
-    const syncChapter = () => {
+    let lastChapter = "";
+    let lastUpdate = 0;
+
+    const syncUI = (time: number) => {
       const next = chapterFor(current.current);
-      setProgress((prev) => prev === Number(next.at.toFixed(2)) ? prev : current.current);
-      frame = requestAnimationFrame(syncChapter);
+      if (next.no !== lastChapter && time - lastUpdate > 80) {
+        lastChapter = next.no;
+        lastUpdate = time;
+        setProgress(current.current);
+      }
+      frame = requestAnimationFrame(syncUI);
     };
-    frame = requestAnimationFrame(syncChapter);
+
+    frame = requestAnimationFrame(syncUI);
     return () => cancelAnimationFrame(frame);
   }, []);
 
