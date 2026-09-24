@@ -12,10 +12,11 @@ const HOUSE_MODEL =
 const chapters = [
   ["01", "ARRIVAL", "A slow architectural approach."],
   ["02", "THRESHOLD", "Stone, glass and shadow."],
-  ["03", "LIGHT", "Form revealed through movement."],
-  ["04", "INTERIOR", "A quiet passage through space."],
-  ["05", "WATER", "Architecture meets landscape."],
-  ["06", "FINAL FRAME", "The residence in full."],
+  ["03", "LIVING ROOM", "A wider view across the room."],
+  ["04", "BEDROOM", "A private interior reveal."],
+  ["05", "RETURN", "Back through the living space."],
+  ["06", "WATER", "Architecture meets landscape."],
+  ["07", "FINAL FRAME", "The residence in full."],
 ] as const;
 
 type Waypoint = { position: THREE.Vector3; target: THREE.Vector3 };
@@ -176,9 +177,19 @@ function CameraRig({
       // Threshold: camera crosses the facade instead of stopping outside.
       { position: p(0.72, 0.30, 0.82), target: t(0.02, 0.10, 0.02) },
       { position: p(0.20, 0.18, 0.36), target: t(-0.10, 0.12, -0.18) },
-      // Interior reveal: eye-level architectural walkthrough.
+      // Enter the living room and hold the eye-line longer.
       { position: p(-0.28, 0.16, -0.12), target: t(-0.10, 0.16, -0.62) },
-      { position: p(-0.62, 0.20, -0.72), target: t(0.12, 0.18, -0.92) },
+      { position: p(-0.62, 0.20, -0.72), target: t(0.28, 0.18, -0.58) },
+      // Continue across the other side of the living room.
+      { position: p(0.34, 0.18, -0.82), target: t(0.68, 0.18, -0.38) },
+      { position: p(0.78, 0.20, -0.48), target: t(0.30, 0.20, 0.02) },
+      // Turn deeper into the residence for a bedroom reveal.
+      { position: p(0.82, 0.22, 0.10), target: t(0.30, 0.20, 0.72) },
+      { position: p(0.28, 0.20, 0.68), target: t(-0.18, 0.20, 0.86) },
+      { position: p(-0.12, 0.20, 0.92), target: t(-0.52, 0.20, 0.58) },
+      // Bedroom exit: reverse through the living room instead of teleporting.
+      { position: p(0.18, 0.18, 0.56), target: t(0.52, 0.18, -0.12) },
+      { position: p(0.56, 0.18, -0.30), target: t(-0.18, 0.18, -0.66) },
       // Interior-to-exterior transition and final hero frame.
       { position: p(0.42, 0.34, 0.48), target: t(0, 0.08, 0) },
       { position: p(2.05, 0.86, 2.20), target: t(0, 0.02, 0) },
@@ -206,7 +217,7 @@ function CameraRig({
     if (uiRef.current) {
       const value = smoothed.current;
       uiRef.current.style.setProperty("--progress", value.toFixed(4));
-      uiRef.current.style.setProperty("--chapter", String(Math.min(5, Math.floor(value * 6))));
+      uiRef.current.style.setProperty("--chapter", String(Math.min(6, Math.floor(value * 7))));
     }
   });
 
@@ -284,7 +295,7 @@ export default function FreshLuxuryHouse() {
             setReady(true);
           }}
         >
-          <ScrollControls pages={6} damping={0.12} distance={1} maxSpeed={0.12}>
+          <ScrollControls pages={7} damping={0.12} distance={1} maxSpeed={0.12}>
             <FreshScene uiRef={uiRef} />
             <Scroll html>
               <div className="fresh-scroll-space" />
@@ -302,7 +313,7 @@ export default function FreshLuxuryHouse() {
         <div className="fresh-progress">
           <span>01</span>
           <i><b /></i>
-          <span>06</span>
+          <span>07</span>
         </div>
 
         <section className="fresh-title">
