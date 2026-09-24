@@ -145,23 +145,28 @@ function CinematicGrade() {
 
   useFrame((_, delta) => {
     const next = THREE.MathUtils.clamp(scrollTarget.current, 0, 1);
-    smoothed.current = THREE.MathUtils.damp(smoothed.current, next, 6.5, delta);
+    smoothed.current = THREE.MathUtils.damp(smoothed.current, next, 9, delta);
 
     const scaled = smoothed.current * (waypoints.length - 1);
-    const i = Math.min(waypoints.length - 2, Math.max(0, Math.floor(scaled)));
-    const t = THREE.MathUtils.smootherstep(scaled - i, 0, 1);
-    const a = waypoints[i];
-    const b = waypoints[i + 1];
+    const segment = Math.min(waypoints.length - 2, Math.max(0, Math.floor(scaled)));
+    const localT = THREE.MathUtils.clamp(scaled - segment, 0, 1);
+    const t = THREE.MathUtils.smootherstep(localT, 0, 1);
+    const a = waypoints[segment];
+    const b = waypoints[segment + 1];
 
     currentCamera.current.lerpVectors(a.camera, b.camera, t);
     currentTarget.current.lerpVectors(a.target, b.target, t);
-    currentCamera.current.y += Math.sin(smoothed.current * Math.PI * 4) * CAMERA_LIFT;
+
+    if (CAMERA_LIFT !== 0) {
+      currentCamera.current.y += Math.sin(smoothed.current * Math.PI * 4) * CAMERA_LIFT;
+    }
 
     if (!initialized.current) {
       camera.position.copy(currentCamera.current);
       initialized.current = true;
     } else {
-      camera.position.lerp(currentCamera.current, Math.min(1, delta * 10));
+      const follow = 1 - Math.exp(-14 * delta);
+      camera.position.lerp(currentCamera.current, follow);
     }
     camera.lookAt(currentTarget.current);
   });
