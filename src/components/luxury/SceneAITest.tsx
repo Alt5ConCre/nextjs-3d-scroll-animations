@@ -73,13 +73,36 @@ function House({ onReady }: { onReady: (box: THREE.Box3) => void }) {
   return <group ref={group}><primitive object={scene} /></group>;
 }
 
+class PostFXBoundary extends React.Component<
+  { children: React.ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn("[LuxuryHouse] Post-processing isolated after client render error:", error);
+  }
+
+  render() {
+    // Keep the architectural scene alive if a browser/GPU rejects an effect.
+    // The cinematic CSS atmosphere/vignette/grain remains active underneath.
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 function CinematicGrade() {
   return (
-    <EffectComposer multisampling={2}>
-      <Bloom luminanceThreshold={1.05} mipmapBlur intensity={0.12} radius={0.5} />
-      <Noise premultiply opacity={0.018} />
-      <Vignette eskil={false} offset={0.22} darkness={0.62} />
-    </EffectComposer>
+    <PostFXBoundary>
+      <EffectComposer multisampling={2}>
+        <Bloom luminanceThreshold={1.05} mipmapBlur intensity={0.12} radius={0.5} />
+        <Noise premultiply opacity={0.018} />
+        <Vignette eskil={false} offset={0.22} darkness={0.62} />
+      </EffectComposer>
+    </PostFXBoundary>
   );
 }
 
