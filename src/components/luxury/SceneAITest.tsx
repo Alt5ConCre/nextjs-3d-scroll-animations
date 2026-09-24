@@ -1,217 +1,153 @@
 "use client";
 
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import * as THREE from "three";
+import { useEffect, useRef, useState } from "react";
 import "./SceneAITest.css";
 
-function House() {
-  const trees = useMemo(() => Array.from({ length: 14 }, (_, i) => ({
-    x: -7 + (i * 1.07) % 14,
-    z: -4.8 - ((i * 1.71) % 3.5),
-    s: 0.65 + (i % 4) * 0.12,
-  })), []);
+const HOUSE_VIDEO =
+  process.env.NEXT_PUBLIC_LUXURY_HOUSE_VIDEO_URL ||
+  "/assets/luxury-house-cinematic.mp4";
 
-  return (
-    <group>
-      {/* terrace / ground */}
-      <mesh position={[0, -0.15, 0]}>
-        <boxGeometry args={[14, 0.3, 10]} />
-        <meshStandardMaterial color="#777064" roughness={0.9} />
-      </mesh>
-
-      {/* main architectural volumes */}
-      <mesh position={[-1.3, 1.55, 0]}>
-        <boxGeometry args={[7.8, 3.1, 5.2]} />
-        <meshStandardMaterial color="#d8d0c3" roughness={0.55} />
-      </mesh>
-      <mesh position={[3.7, 2.15, -0.1]}>
-        <boxGeometry args={[3.2, 4.3, 4.8]} />
-        <meshStandardMaterial color="#b7ad9c" roughness={0.48} />
-      </mesh>
-
-      {/* cantilever */}
-      <mesh position={[-0.4, 3.35, 0.25]}>
-        <boxGeometry args={[6.6, 0.32, 5.7]} />
-        <meshStandardMaterial color="#c7bdad" roughness={0.5} />
-      </mesh>
-
-      {/* dark glass facade */}
-      <mesh position={[-0.7, 1.7, 2.64]}>
-        <boxGeometry args={[6.8, 2.8, 0.08]} />
-        <meshStandardMaterial color="#263136" metalness={0.18} roughness={0.12} />
-      </mesh>
-      <mesh position={[3.72, 2.2, 2.42]}>
-        <boxGeometry args={[3.0, 3.9, 0.08]} />
-        <meshStandardMaterial color="#1f292d" metalness={0.2} roughness={0.1} />
-      </mesh>
-
-      {/* vertical mullions */}
-      {[-3.2, -1.55, 0.1, 1.75, 3.15].map((x) => (
-        <mesh key={x} position={[x, 1.7, 2.69]}>
-          <boxGeometry args={[0.035, 2.75, 0.08]} />
-          <meshStandardMaterial color="#8f887b" metalness={0.8} roughness={0.25} />
-        </mesh>
-      ))}
-
-      {/* entrance */}
-      <mesh position={[1.85, 1.25, 2.78]}>
-        <boxGeometry args={[1.45, 2.5, 0.12]} />
-        <meshStandardMaterial color="#302d29" roughness={0.34} />
-      </mesh>
-      <mesh position={[1.85, 2.52, 2.86]}>
-        <boxGeometry args={[2.0, 0.08, 0.75]} />
-        <meshStandardMaterial color="#9c9180" roughness={0.35} />
-      </mesh>
-
-      {/* pool */}
-      <mesh position={[-1.7, 0.04, 5.0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[9.4, 3.5]} />
-        <meshStandardMaterial color="#466c70" metalness={0.18} roughness={0.08} />
-      </mesh>
-      <mesh position={[-1.7, 0.09, 5.0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[8.9, 3.0]} />
-        <meshStandardMaterial color="#82999a" metalness={0.05} roughness={0.12} transparent opacity={0.5} />
-      </mesh>
-
-      {/* sculptural landscaping */}
-      {trees.map((t, i) => (
-        <group key={i} position={[t.x, 0, t.z]} scale={t.s}>
-          <mesh position={[0, 0.9, 0]}>
-            <cylinderGeometry args={[0.08, 0.12, 1.8, 8]} />
-            <meshStandardMaterial color="#40372d" roughness={0.9} />
-          </mesh>
-          <mesh position={[0, 1.9, 0]}>
-            <sphereGeometry args={[0.62, 12, 8]} />
-            <meshStandardMaterial color="#344139" roughness={0.95} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* warm architectural lights */}
-      {[[-3.1, 1.4, 2.95], [-1.0, 1.4, 2.95], [1.1, 1.4, 2.95], [3.1, 1.9, 2.95]].map((p, i) => (
-        <pointLight key={i} position={p as [number, number, number]} intensity={5} distance={5} color="#ffd9a1" />
-      ))}
-    </group>
-  );
-}
-
-function CameraDirector({ progress }: { progress: number }) {
-  const target = useRef(new THREE.Vector3());
-  useFrame(({ camera }, delta) => {
-    const p = THREE.MathUtils.clamp(progress, 0, 1);
-    const shot = p < 0.25 ? p / 0.25 : p < 0.52 ? (p - 0.25) / 0.27 : p < 0.76 ? (p - 0.52) / 0.24 : (p - 0.76) / 0.24;
-
-    let x = 10 - p * 12;
-    let y = 5.1 - Math.sin(p * Math.PI) * 2.2;
-    let z = 13 - p * 10;
-
-    if (p < 0.25) {
-      x = 11 - shot * 5;
-      y = 4.8 - shot * 0.7;
-      z = 13 - shot * 2;
-      target.current.set(0, 1.8, 0);
-    } else if (p < 0.52) {
-      x = 6 - shot * 6;
-      y = 2.8 - shot * 0.4;
-      z = 10 - shot * 4;
-      target.current.set(0, 1.6, 1.4);
-    } else if (p < 0.76) {
-      x = -2.8 + shot * 1.8;
-      y = 1.75 + shot * 0.35;
-      z = 5.6 - shot * 2.2;
-      target.current.set(-0.5, 1.5, 1.8);
-    } else {
-      x = -1 + shot * 9;
-      y = 3.1 + shot * 1.2;
-      z = 5 + shot * 7;
-      target.current.set(0, 1.3, 1);
-    }
-
-    camera.position.x = THREE.MathUtils.damp(camera.position.x, x, 2.8, delta);
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, y, 2.8, delta);
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, z, 2.8, delta);
-    camera.lookAt(target.current);
-  });
-  return null;
-}
-
-function Scene({ progress }: { progress: number }) {
-  return (
-    <Canvas
-      dpr={[1, 1.5]}
-      gl={{ antialias: true, powerPreference: "high-performance" }}
-      camera={{ position: [10, 5, 13], fov: 38 }}
-    >
-      <color attach="background" args={["#11110f"]} />
-      <fog attach="fog" args={["#11110f", 9, 28]} />
-      <ambientLight intensity={0.38} />
-      <directionalLight position={[6, 10, 8]} intensity={2.5} />
-      <directionalLight position={[-8, 5, -5]} intensity={0.75} />
-      <pointLight position={[-1, 5, 6]} intensity={18} color="#f3c98d" distance={15} />
-      <Suspense fallback={null}>
-        <House />
-      </Suspense>
-      <CameraDirector progress={progress} />
-    </Canvas>
-  );
-}
-
-const shots = [
-  ["01", "ARRIVAL", "A cinematic approach to the residence."],
-  ["02", "THE THRESHOLD", "Architecture, glass and shadow."],
-  ["03", "LIGHT MEETS FORM", "A slow journey through the living spaces."],
-  ["04", "THE FINAL FRAME", "Residence, water and landscape."],
+const chapters = [
+  { at: 0, no: "01", label: "ARRIVAL", detail: "A residence shaped by light, stone and space." },
+  { at: 0.18, no: "02", label: "THE THRESHOLD", detail: "Architecture meets landscape through glass and shadow." },
+  { at: 0.38, no: "03", label: "LIGHT / FORM", detail: "Quiet geometry, natural materials, controlled light." },
+  { at: 0.60, no: "04", label: "PRIVATE SPACES", detail: "Interiors designed for stillness and proportion." },
+  { at: 0.78, no: "05", label: "WATER / LANDSCAPE", detail: "A continuous relationship between house and horizon." },
+  { at: 0.92, no: "06", label: "THE FINAL FRAME", detail: "The residence returns to the landscape." },
 ];
 
+function getChapter(progress: number) {
+  let active = chapters[0];
+  for (const chapter of chapters) {
+    if (progress >= chapter.at) active = chapter;
+  }
+  return active;
+}
+
 export default function SceneAITest() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const targetProgress = useRef(0);
+  const renderedProgress = useRef(0);
+  const rafRef = useRef<number | null>(null);
+  const [ready, setReady] = useState(false);
+  const [hasVideo, setHasVideo] = useState(true);
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    const update = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      setProgress(max > 0 ? window.scrollY / max : 0);
+    const updateTarget = () => {
+      const maxScroll =
+        document.documentElement.scrollHeight - window.innerHeight;
+      targetProgress.current =
+        maxScroll > 0
+          ? Math.min(1, Math.max(0, window.scrollY / maxScroll))
+          : 0;
     };
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-    };
-  }, []);
 
-  const shotIndex = Math.min(3, Math.floor(progress * 4));
-  const shot = shots[shotIndex];
+    const tick = () => {
+      renderedProgress.current +=
+        (targetProgress.current - renderedProgress.current) * 0.095;
+
+      const video = videoRef.current;
+      if (
+        video &&
+        ready &&
+        Number.isFinite(video.duration) &&
+        video.duration > 0
+      ) {
+        const nextTime =
+          renderedProgress.current * Math.max(0, video.duration - 0.04);
+
+        if (Math.abs(video.currentTime - nextTime) > 0.012) {
+          try {
+            video.currentTime = nextTime;
+          } catch {
+            // Browser can reject seeks while metadata is changing.
+          }
+        }
+      }
+
+      setProgress(renderedProgress.current);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    updateTarget();
+    window.addEventListener("scroll", updateTarget, { passive: true });
+    window.addEventListener("resize", updateTarget);
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      window.removeEventListener("scroll", updateTarget);
+      window.removeEventListener("resize", updateTarget);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [ready]);
+
+  const chapter = getChapter(progress);
 
   return (
     <main className="sceneai-test">
-      <div className="sceneai-canvas"><Scene progress={progress} /></div>
+      <div className="sceneai-media" aria-hidden="true">
+        <video
+          ref={videoRef}
+          className={`sceneai-video ${hasVideo ? "" : "sceneai-video--hidden"}`}
+          src={HOUSE_VIDEO}
+          muted
+          playsInline
+          preload="auto"
+          onLoadedMetadata={() => setReady(true)}
+          onCanPlay={() => setReady(true)}
+          onError={() => setHasVideo(false)}
+        />
+        <div className="sceneai-fallback">
+          <div className="fallback-sky" />
+          <div className="fallback-house">
+            <div className="fallback-roof" />
+            <div className="fallback-volume fallback-volume--left" />
+            <div className="fallback-volume fallback-volume--right" />
+            <div className="fallback-glass" />
+            <div className="fallback-pool" />
+          </div>
+        </div>
+      </div>
+
+      <div className="sceneai-atmosphere" />
       <div className="sceneai-grain" />
       <div className="sceneai-vignette" />
 
       <header className="sceneai-nav">
-        <span>PRIVATE RESIDENCE</span>
-        <span>DUBAI · CINEMATIC STUDY</span>
+        <span className="sceneai-brand">PRIVATE RESIDENCE</span>
+        <span className="sceneai-meta">DUBAI · ARCHITECTURAL FILM</span>
       </header>
 
-      <div className="sceneai-progress">
-        <span>{shot[0]}</span><i style={{ transform: `scaleY(${Math.max(0.04, (shotIndex + 1) / 4)})` }} /><span>04</span>
-      </div>
+      <aside className="sceneai-progress" aria-hidden="true">
+        <span>{chapter.no}</span>
+        <div className="sceneai-progress-track">
+          <i style={{ transform: `scaleY(${Math.max(0.025, progress)})` }} />
+        </div>
+        <span>06</span>
+      </aside>
 
-      <section className="sceneai-copy sceneai-copy--hero">
-        <p>ARCHITECTURE / {shot[0]}</p>
-        <h1>{shot[1]}</h1>
-        <span>{shot[2]}</span>
+      <section className="sceneai-copy">
+        <p>ARCHITECTURE / {chapter.no}</p>
+        <h1 key={chapter.no}>{chapter.label}</h1>
+        <span>{chapter.detail}</span>
       </section>
 
-      <section className="sceneai-spacer" aria-hidden="true" />
-      <section className="sceneai-spacer" aria-hidden="true" />
-      <section className="sceneai-spacer" aria-hidden="true" />
+      <div className="sceneai-scroll-hint">
+        <span>SCROLL TO EXPLORE</span>
+        <i />
+      </div>
+
+      <div className="sceneai-spacer" />
+      <div className="sceneai-spacer" />
+      <div className="sceneai-spacer" />
+      <div className="sceneai-spacer" />
+      <div className="sceneai-spacer" />
+      <div className="sceneai-spacer" />
 
       <footer className="sceneai-footer">
-        <span>SCROLL TO DIRECT THE CAMERA</span>
-        <span>BLENDER / THREE.JS / CINEMATIC WALKTHROUGH</span>
+        <span>SCROLL / SCRUB / REVERSE</span>
+        <span>PRIVATE RESIDENCE — 2026</span>
       </footer>
     </main>
   );
