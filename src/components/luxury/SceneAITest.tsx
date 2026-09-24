@@ -1,128 +1,236 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import {
+  ContactShadows,
+  Environment,
+  Html,
+  Preload,
+  useGLTF,
+} from "@react-three/drei";
+import * as THREE from "three";
 import "./SceneAITest.css";
 
-const HOUSE_VIDEO =
-  process.env.NEXT_PUBLIC_LUXURY_HOUSE_VIDEO_URL ||
-  "/assets/luxury-house-cinematic.mp4";
+const HOUSE_MODEL =
+  "https://raw.githubusercontent.com/qduoduo-hwh/gptblender_demo/main/gptblender-house-lite.glb";
 
 const chapters = [
-  { at: 0, no: "01", label: "ARRIVAL", detail: "A residence shaped by light, stone and space." },
-  { at: 0.18, no: "02", label: "THE THRESHOLD", detail: "Architecture meets landscape through glass and shadow." },
-  { at: 0.38, no: "03", label: "LIGHT / FORM", detail: "Quiet geometry, natural materials, controlled light." },
-  { at: 0.60, no: "04", label: "PRIVATE SPACES", detail: "Interiors designed for stillness and proportion." },
-  { at: 0.78, no: "05", label: "WATER / LANDSCAPE", detail: "A continuous relationship between house and horizon." },
-  { at: 0.92, no: "06", label: "THE FINAL FRAME", detail: "The residence returns to the landscape." },
+  { at: 0, no: "01", label: "ARRIVAL", detail: "A cinematic approach to the residence." },
+  { at: 0.16, no: "02", label: "THE THRESHOLD", detail: "Stone, glass and shadow establish the entrance." },
+  { at: 0.32, no: "03", label: "LIGHT / FORM", detail: "The architecture reveals itself through movement." },
+  { at: 0.50, no: "04", label: "THE INTERIOR", detail: "A quiet passage into the living spaces." },
+  { at: 0.68, no: "05", label: "WATER / LANDSCAPE", detail: "Architecture dissolves into the garden and pool." },
+  { at: 0.84, no: "06", label: "THE FINAL FRAME", detail: "A wide architectural portrait of the residence." },
 ];
 
-function getChapter(progress: number) {
+type Waypoint = {
+  camera: THREE.Vector3;
+  target: THREE.Vector3;
+};
+
+function chapterFor(progress: number) {
   let active = chapters[0];
-  for (const chapter of chapters) {
-    if (progress >= chapter.at) active = chapter;
-  }
+  for (const chapter of chapters) if (progress >= chapter.at) active = chapter;
   return active;
 }
 
-export default function SceneAITest() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const targetProgress = useRef(0);
-  const renderedProgress = useRef(0);
-  const rafRef = useRef<number | null>(null);
-  const [ready, setReady] = useState(false);
-  const [hasVideo, setHasVideo] = useState(true);
-  const [progress, setProgress] = useState(0);
+function House({ onReady }: { onReady: (box: THREE.Box3) => void }) {
+  const { scene } = useGLTF(HOUSE_MODEL);
+  const group = useRef<THREE.Group>(null);
 
   useEffect(() => {
-    const updateTarget = () => {
-      const maxScroll =
-        document.documentElement.scrollHeight - window.innerHeight;
-      targetProgress.current =
-        maxScroll > 0
-          ? Math.min(1, Math.max(0, window.scrollY / maxScroll))
-          : 0;
+    const box = new THREE.Box3().setFromObject(scene);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+
+    scene.position.sub(center);
+    scene.scale.setScalar(12 / maxDim);
+
+    const normalized = new THREE.Box3().setFromObject(scene);
+    onReady(normalized);
+
+    scene.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      const material = mesh.material as THREE.MeshStandardMaterial;
+      if (material?.isMeshStandardMaterial) {
+        material.envMapIntensity = 1.05;
+        material.roughness = Math.max(0.18, material.roughness);
+      }
+    });
+  }, [scene, onReady]);
+
+  return <group ref={group}><primitive object={scene} /></group>;
+}
+
+function CameraDirector({
+  progress,
+  bounds,
+}: {
+  progress: number;
+  bounds: THREE.Box3 | null;
+}) {
+  const { camera } = useThree();
+  const smoothed = useRef(0);
+
+  const waypoints = useMemo<Waypoint[]>(() => {
+    const b = bounds ?? new THREE.Box3(
+      new THREE.Vector3(-6, -2, -5),
+      new THREE.Vector3(6, 5, 5)
+    );
+    const c = b.getCenter(new THREE.Vector3());
+    const h = Math.max(1, b.max.y - b.min.y);
+    const z = Math.max(1, b.max.z - b.min.z);
+
+    return [
+      { camera: new THREE.Vector3(c.x + 10, c.y + h * 0.42, c.z + 15), target: new THREE.Vector3(c.x, c.y + h * 0.18, c.z) },
+      { camera: new THREE.Vector3(c.x + 7, c.y + h * 0.30, c.z + 10), target: new THREE.Vector3(c.x, c.y + h * 0.20, c.z) },
+      { camera: new THREE.Vector3(c.x + 3.5, c.y + h * 0.24, c.z + 6.5), target: new THREE.Vector3(c.x, c.y + h * 0.20, c.z) },
+      { camera: new THREE.Vector3(c.x + 1.2, c.y + h * 0.18, c.z + Math.max(2.2, z * 0.45)), target: new THREE.Vector3(c.x, c.y + h * 0.16, c.z) },
+      { camera: new THREE.Vector3(c.x - 2.5, c.y + h * 0.23, c.z + Math.max(3, z * 0.60)), target: new THREE.Vector3(c.x, c.y + h * 0.18, c.z) },
+      { camera: new THREE.Vector3(c.x - 6.5, c.y + h * 0.42, c.z + 9), target: new THREE.Vector3(c.x, c.y + h * 0.20, c.z) },
+      { camera: new THREE.Vector3(c.x - 9, c.y + h * 0.58, c.z + 14), target: new THREE.Vector3(c.x, c.y + h * 0.18, c.z) },
+      { camera: new THREE.Vector3(c.x + 12, c.y + h * 0.52, c.z + 18), target: new THREE.Vector3(c.x, c.y + h * 0.20, c.z) },
+    ];
+  }, [bounds]);
+
+  useFrame((_, delta) => {
+    smoothed.current = THREE.MathUtils.damp(
+      smoothed.current,
+      progress,
+      5.5,
+      delta
+    );
+
+    const scaled = smoothed.current * (waypoints.length - 1);
+    const i = Math.min(waypoints.length - 2, Math.floor(scaled));
+    const t = THREE.MathUtils.smootherstep(scaled - i, 0, 1);
+    const a = waypoints[i];
+    const b = waypoints[i + 1];
+
+    camera.position.lerpVectors(a.camera, b.camera, t);
+    const target = new THREE.Vector3().lerpVectors(a.target, b.target, t);
+    camera.lookAt(target);
+  });
+
+  return null;
+}
+
+function ArchitecturalScene({
+  progress,
+  onReady,
+}: {
+  progress: number;
+  onReady: (box: THREE.Box3) => void;
+}) {
+  const [bounds, setBounds] = useState<THREE.Box3 | null>(null);
+
+  const handleReady = (box: THREE.Box3) => {
+    setBounds(box);
+    onReady(box);
+  };
+
+  return (
+    <>
+      <color attach="background" args={["#11100d"]} />
+      <fog attach="fog" args={["#11100d", 18, 46]} />
+
+      <ambientLight intensity={0.42} />
+      <directionalLight
+        castShadow
+        position={[8, 12, 10]}
+        intensity={3.0}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-bias={-0.00015}
+      />
+      <directionalLight position={[-8, 5, -6]} intensity={1.25} />
+      <spotLight position={[0, 10, 4]} angle={0.55} penumbra={0.9} intensity={18} distance={30} />
+
+      <Environment preset="city" environmentIntensity={0.55} />
+
+      <Suspense fallback={<Html center><div className="sceneai-loader">LOADING ARCHITECTURE</div></Html>}>
+        <House onReady={handleReady} />
+        <ContactShadows
+          position={[0, -5.9, 0]}
+          opacity={0.38}
+          scale={28}
+          blur={2.8}
+          far={18}
+        />
+      </Suspense>
+
+      <CameraDirector progress={progress} bounds={bounds} />
+      <Preload all />
+    </>
+  );
+}
+
+export default function SceneAITest() {
+  const [progress, setProgress] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const [bounds, setBounds] = useState<THREE.Box3 | null>(null);
+  const target = useRef(0);
+  const current = useRef(0);
+  const raf = useRef<number | null>(null);
+
+  useEffect(() => {
+    const update = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      target.current = max > 0 ? THREE.MathUtils.clamp(window.scrollY / max, 0, 1) : 0;
     };
 
     const tick = () => {
-      renderedProgress.current +=
-        (targetProgress.current - renderedProgress.current) * 0.095;
-
-      const video = videoRef.current;
-      if (
-        video &&
-        ready &&
-        Number.isFinite(video.duration) &&
-        video.duration > 0
-      ) {
-        const nextTime =
-          renderedProgress.current * Math.max(0, video.duration - 0.04);
-
-        if (Math.abs(video.currentTime - nextTime) > 0.012) {
-          try {
-            video.currentTime = nextTime;
-          } catch {
-            // Browser can reject seeks while metadata is changing.
-          }
-        }
-      }
-
-      setProgress(renderedProgress.current);
-      rafRef.current = requestAnimationFrame(tick);
+      current.current = THREE.MathUtils.damp(current.current, target.current, 7, 1 / 60);
+      setProgress(current.current);
+      raf.current = requestAnimationFrame(tick);
     };
 
-    updateTarget();
-    window.addEventListener("scroll", updateTarget, { passive: true });
-    window.addEventListener("resize", updateTarget);
-    rafRef.current = requestAnimationFrame(tick);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    raf.current = requestAnimationFrame(tick);
 
     return () => {
-      window.removeEventListener("scroll", updateTarget);
-      window.removeEventListener("resize", updateTarget);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      if (raf.current) cancelAnimationFrame(raf.current);
     };
-  }, [ready]);
+  }, []);
 
-  const chapter = getChapter(progress);
+  const chapter = chapterFor(progress);
 
   return (
     <main className="sceneai-test">
-      <div className="sceneai-media" aria-hidden="true">
-        <video
-          ref={videoRef}
-          className={`sceneai-video ${hasVideo ? "" : "sceneai-video--hidden"}`}
-          src={HOUSE_VIDEO}
-          muted
-          playsInline
-          preload="auto"
-          onLoadedMetadata={() => setReady(true)}
-          onCanPlay={() => setReady(true)}
-          onError={() => setHasVideo(false)}
-        />
-        <div className="sceneai-fallback">
-          <div className="fallback-sky" />
-          <div className="fallback-house">
-            <div className="fallback-roof" />
-            <div className="fallback-volume fallback-volume--left" />
-            <div className="fallback-volume fallback-volume--right" />
-            <div className="fallback-glass" />
-            <div className="fallback-pool" />
-          </div>
-        </div>
+      <div className="sceneai-canvas">
+        <Canvas
+          shadows
+          dpr={[1, 1.6]}
+          camera={{ fov: 36, near: 0.05, far: 100 }}
+          gl={{ antialias: true, powerPreference: "high-performance" }}
+          onCreated={() => setLoaded(true)}
+        >
+          <ArchitecturalScene progress={progress} onReady={setBounds} />
+        </Canvas>
       </div>
 
       <div className="sceneai-atmosphere" />
-      <div className="sceneai-grain" />
       <div className="sceneai-vignette" />
+      <div className="sceneai-grain" />
 
       <header className="sceneai-nav">
         <span className="sceneai-brand">PRIVATE RESIDENCE</span>
-        <span className="sceneai-meta">DUBAI · ARCHITECTURAL FILM</span>
+        <span className="sceneai-meta">ARCHITECTURAL FILM / 2026</span>
       </header>
 
-      <aside className="sceneai-progress" aria-hidden="true">
+      <aside className="sceneai-progress">
         <span>{chapter.no}</span>
         <div className="sceneai-progress-track">
-          <i style={{ transform: `scaleY(${Math.max(0.025, progress)})` }} />
+          <i style={{ transform: `scaleY(${Math.max(0.02, progress)})` }} />
         </div>
         <span>06</span>
       </aside>
@@ -133,22 +241,27 @@ export default function SceneAITest() {
         <span>{chapter.detail}</span>
       </section>
 
+      {!loaded && (
+        <div className="sceneai-loading">
+          <span>PREPARING THE SCENE</span>
+        </div>
+      )}
+
       <div className="sceneai-scroll-hint">
-        <span>SCROLL TO EXPLORE</span>
+        <span>SCROLL TO DIRECT THE CAMERA</span>
         <i />
       </div>
 
-      <div className="sceneai-spacer" />
-      <div className="sceneai-spacer" />
-      <div className="sceneai-spacer" />
-      <div className="sceneai-spacer" />
-      <div className="sceneai-spacer" />
-      <div className="sceneai-spacer" />
+      {chapters.map((chapter, index) => (
+        <div className="sceneai-spacer" key={chapter.no} data-scene={index} />
+      ))}
 
       <footer className="sceneai-footer">
         <span>SCROLL / SCRUB / REVERSE</span>
-        <span>PRIVATE RESIDENCE — 2026</span>
+        <span>PRIVATE RESIDENCE</span>
       </footer>
     </main>
   );
 }
+
+useGLTF.preload(HOUSE_MODEL);
