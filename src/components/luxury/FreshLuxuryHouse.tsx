@@ -80,7 +80,7 @@ function normalizeHouse(source: THREE.Object3D) {
 
   return scene;
 }
-function LoadedHouse({ onBounds, motionRef }: { onBounds: (box: THREE.Box3) => void; motionRef: React.MutableRefObject<THREE.Group | null> }) {
+function LoadedHouse({ onBounds, motionRef }: { onBounds: (box: THREE.Box3) => void; motionRef: React.MutableRefObject<THREE.Object3D | null> }) {
   const { scene: source } = useGLTF(HOUSE_MODEL);
   const scene = useMemo(() => normalizeHouse(source), [source]);
 
@@ -88,7 +88,7 @@ function LoadedHouse({ onBounds, motionRef }: { onBounds: (box: THREE.Box3) => v
     onBounds(new THREE.Box3().setFromObject(scene));
   }, [scene, onBounds]);
 
-  return <primitive object={scene} ref={(node) => { motionRef.current = node as THREE.Group | null; }} />;
+  return <primitive object={scene} ref={motionRef} />;
 }
 
 function ProceduralHouse() {
