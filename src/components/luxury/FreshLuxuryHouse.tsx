@@ -302,7 +302,7 @@ export default function FreshLuxuryHouse() {
             setReady(true);
           }}
         >
-          <ScrollControls pages={12} damping={0.12} distance={1} maxSpeed={0.08}>
+          <ScrollControls pages={12} damping={0.22} distance={1.6} maxSpeed={0.035}>
             <FreshScene uiRef={uiRef} />
             <Scroll html>
               <div className="fresh-scroll-space" />
