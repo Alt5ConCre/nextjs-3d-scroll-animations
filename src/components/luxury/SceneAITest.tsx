@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { EffectComposer, Bloom, Noise, Vignette } from "@react-three/postprocessing";
+import { EffectComposer, Bloom, Noise, Vignette, ToneMapping } from "@react-three/postprocessing";
+import { ToneMappingMode } from "postprocessing";
 import {
   ContactShadows,
   Environment,
@@ -77,6 +78,7 @@ function CinematicGrade() {
       <Bloom luminanceThreshold={1.05} mipmapBlur intensity={0.12} radius={0.5} />
       <Noise premultiply opacity={0.018} />
       <Vignette eskil={false} offset={0.22} darkness={0.62} />
+      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     </EffectComposer>
   );
 }
@@ -229,7 +231,7 @@ export default function SceneAITest() {
         <Canvas
           shadows
           camera={{ fov: CAMERA_FOV, near: 0.05, far: 100 }}
-          gl={{ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true, toneMapping: THREE.ACESFilmicToneMapping }}
+          gl={{ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true }}
           dpr={[1, 1.75]}
           onCreated={() => setLoaded(true)}
         >
