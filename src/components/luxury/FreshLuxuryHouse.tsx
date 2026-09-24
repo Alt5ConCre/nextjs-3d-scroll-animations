@@ -80,7 +80,7 @@ function normalizeHouse(source: THREE.Object3D) {
 
   return scene;
 }
-function LoadedHouse({ onBounds }: { onBounds: (box: THREE.Box3) => void }) {
+function LoadedHouse({ onBounds, motionRef }: { onBounds: (box: THREE.Box3) => void; motionRef: React.MutableRefObject<THREE.Group | null> }) {
   const { scene: source } = useGLTF(HOUSE_MODEL);
   const scene = useMemo(() => normalizeHouse(source), [source]);
 
@@ -88,7 +88,7 @@ function LoadedHouse({ onBounds }: { onBounds: (box: THREE.Box3) => void }) {
     onBounds(new THREE.Box3().setFromObject(scene));
   }, [scene, onBounds]);
 
-  return <primitive object={scene} />;
+  return <primitive object={scene} ref={(node) => { motionRef.current = node as THREE.Group | null; }} />;
 }
 
 function ProceduralHouse() {
@@ -148,9 +148,11 @@ class SceneErrorBoundary extends React.Component<
 function CameraRig({
   bounds,
   uiRef,
+  motionRef,
 }: {
   bounds: THREE.Box3 | null;
   uiRef: React.MutableRefObject<HTMLDivElement | null>;
+  motionRef: React.MutableRefObject<THREE.Group | null>;
 }) {
   const { camera, gl } = useThree();
   const scroll = useScroll();
@@ -258,6 +260,16 @@ function CameraRig({
     hoverTarget.current.set(hx * 0.22, hy * 0.10, hx * 0.08);
 
     const desiredPosition = a.current.clone().add(hoverPosition.current);
+
+    // Also move the house itself with the mouse. This is intentionally subtle
+    // so the model feels interactive without breaking the cinematic scroll path.
+    if (motionRef.current) {
+      const house = motionRef.current;
+      house.position.x = THREE.MathUtils.damp(house.position.x, hx * 0.16, 6, delta);
+      house.position.y = THREE.MathUtils.damp(house.position.y, hy * 0.10, 6, delta);
+      house.rotation.y = THREE.MathUtils.damp(house.rotation.y, hx * 0.035, 6, delta);
+      house.rotation.x = THREE.MathUtils.damp(house.rotation.x, -hy * 0.018, 6, delta);
+    }
     const desiredTarget = b.current.clone().add(hoverTarget.current);
 
     const follow = 1 - Math.exp(-8 * delta);
@@ -303,6 +315,7 @@ function Lighting() {
 
 function FreshScene({ uiRef }: { uiRef: React.MutableRefObject<HTMLDivElement | null> }) {
   const [bounds, setBounds] = useState<THREE.Box3 | null>(null);
+  const motionRef = useRef<THREE.Group | null>(null);
 
   return (
     <>
@@ -315,10 +328,10 @@ function FreshScene({ uiRef }: { uiRef: React.MutableRefObject<HTMLDivElement | 
         }
       >
         <SceneErrorBoundary>
-          <LoadedHouse onBounds={setBounds} />
+          <LoadedHouse onBounds={setBounds} motionRef={motionRef} />
         </SceneErrorBoundary>
       </Suspense>
-      <CameraRig bounds={bounds} uiRef={uiRef} />
+      <CameraRig bounds={bounds} uiRef={uiRef} motionRef={motionRef} />
     </>
   );
 }
