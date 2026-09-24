@@ -1,24 +1,17 @@
 "use client";
 
-import { Suspense } from "react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer, Bloom, Noise, Vignette } from "@react-three/postprocessing";
-import {
-  ContactShadows,
-  Environment,
-  Html,
-  Preload,
-  useGLTF,
-} from "@react-three/drei";
+import { ContactShadows, Environment, Html, Preload, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import "./SceneAITest.css";
 
 const HOUSE_MODEL =
   "https://raw.githubusercontent.com/qduoduo-hwh/gptblender_demo/main/gptblender-house-lite.glb";
 
-const CAMERA_LIFT = 0.035;
 const CAMERA_FOV = 34;
+const CAMERA_LIFT = 0.025;
 
 const chapters = [
   { at: 0, no: "01", label: "ARRIVAL", detail: "A cinematic approach to the residence." },
@@ -29,10 +22,7 @@ const chapters = [
   { at: 0.84, no: "06", label: "THE FINAL FRAME", detail: "A wide architectural portrait of the residence." },
 ];
 
-type Waypoint = {
-  camera: THREE.Vector3;
-  target: THREE.Vector3;
-};
+type Waypoint = { camera: THREE.Vector3; target: THREE.Vector3 };
 
 function chapterFor(progress: number) {
   let active = chapters[0];
@@ -43,34 +33,40 @@ function chapterFor(progress: number) {
 function House({ onReady }: { onReady: (box: THREE.Box3) => void }) {
   const { scene: sourceScene } = useGLTF(HOUSE_MODEL);
   const scene = useMemo(() => sourceScene.clone(true), [sourceScene]);
-  const group = useRef<THREE.Group>(null);
+  const normalizedOnce = useRef(false);
 
   useEffect(() => {
+    if (normalizedOnce.current) return;
+    normalizedOnce.current = true;
+
     const box = new THREE.Box3().setFromObject(scene);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    const maxDim = Math.max(size.x, size.y, size.z, 0.001);
 
     scene.position.sub(center);
     scene.scale.setScalar(12 / maxDim);
 
-    const normalized = new THREE.Box3().setFromObject(scene);
-    onReady(normalized);
-
     scene.traverse((object) => {
+      if (!(object as THREE.Mesh).isMesh) return;
       const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      const material = mesh.material as THREE.MeshStandardMaterial;
-      if (material?.isMeshStandardMaterial) {
-        material.envMapIntensity = 1.05;
-        material.roughness = Math.max(0.18, material.roughness);
+
+      const material = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const item of material) {
+        const mat = item as THREE.MeshStandardMaterial;
+        if (mat?.isMeshStandardMaterial) {
+          mat.envMapIntensity = 1.05;
+          mat.roughness = Math.max(0.18, mat.roughness);
+        }
       }
     });
+
+    onReady(new THREE.Box3().setFromObject(scene));
   }, [scene, onReady]);
 
-  return <group ref={group}><primitive object={scene} /></group>;
+  return <primitive object={scene} />;
 }
 
 class PostFXBoundary extends React.Component<
@@ -84,12 +80,10 @@ class PostFXBoundary extends React.Component<
   }
 
   componentDidCatch(error: unknown) {
-    console.warn("[LuxuryHouse] Post-processing isolated after client render error:", error);
+    console.warn("[LuxuryHouse] Post-processing isolated:", error);
   }
 
   render() {
-    // Keep the architectural scene alive if a browser/GPU rejects an effect.
-    // The cinematic CSS atmosphere/vignette/grain remains active underneath.
     return this.state.failed ? null : this.props.children;
   }
 }
@@ -97,7 +91,7 @@ class PostFXBoundary extends React.Component<
 function CinematicGrade() {
   return (
     <PostFXBoundary>
-      <EffectComposer multisampling={2}>
+      <EffectComposer multisampling={0}>
         <Bloom luminanceThreshold={1.05} mipmapBlur intensity={0.12} radius={0.5} />
         <Noise premultiply opacity={0.018} />
         <Vignette eskil={false} offset={0.22} darkness={0.62} />
@@ -117,45 +111,37 @@ function CameraDirector({
   const smoothed = useRef(0);
   const currentCamera = useRef(new THREE.Vector3());
   const currentTarget = useRef(new THREE.Vector3());
+  const initialized = useRef(false);
 
   const waypoints = useMemo<Waypoint[]>(() => {
-    // Build the path from the actual normalized house bounds. The previous
-    // path used hard-coded world offsets that could send the camera through
-    // the model or past the near clipping plane when the GLB dimensions/origin
-    // differed. These positions stay outside the house and keep a consistent
-    // architectural framing.
     const b = bounds ?? new THREE.Box3(
       new THREE.Vector3(-6, -6, -6),
       new THREE.Vector3(6, 6, 6)
     );
     const c = b.getCenter(new THREE.Vector3());
     const size = b.getSize(new THREE.Vector3());
-    const radius = Math.max(size.x, size.z) * 0.5;
-    const halfHeight = Math.max(1, size.y * 0.5);
-    const safe = Math.max(2.5, radius * 0.72);
-    const elevated = Math.max(1.2, halfHeight * 0.28);
-
+    const radius = Math.max(size.x, size.z, 1) * 0.5;
+    const halfHeight = Math.max(size.y * 0.5, 1);
+    const safe = Math.max(3.2, radius * 0.82);
+    const elevated = Math.max(1.3, halfHeight * 0.30);
     const target = (x = 0, y = 0, z = 0) =>
-      new THREE.Vector3(
-        c.x + x * radius,
-        c.y + y * halfHeight,
-        c.z + z * radius
-      );
+      new THREE.Vector3(c.x + x * radius, c.y + y * halfHeight, c.z + z * radius);
 
     return [
-      { camera: new THREE.Vector3(c.x + safe * 1.55, c.y + elevated * 1.9, c.z + safe * 1.9), target: target(0, 0.05, 0) },
-      { camera: new THREE.Vector3(c.x + safe * 1.25, c.y + elevated * 1.35, c.z + safe * 1.45), target: target(0.05, 0.02, 0) },
-      { camera: new THREE.Vector3(c.x + safe * 0.95, c.y + elevated * 1.05, c.z + safe * 1.05), target: target(0, 0.04, 0) },
-      { camera: new THREE.Vector3(c.x + safe * 0.78, c.y + elevated * 0.82, c.z + safe * 0.72), target: target(-0.08, 0.08, -0.04) },
-      { camera: new THREE.Vector3(c.x - safe * 0.72, c.y + elevated * 0.9, c.z + safe * 0.62), target: target(-0.12, 0.1, -0.08) },
-      { camera: new THREE.Vector3(c.x - safe * 1.05, c.y + elevated * 1.25, c.z + safe * 1.1), target: target(0.08, 0.06, 0) },
-      { camera: new THREE.Vector3(c.x - safe * 1.5, c.y + elevated * 1.8, c.z + safe * 1.55), target: target(0, 0.02, 0) },
-      { camera: new THREE.Vector3(c.x + safe * 1.7, c.y + elevated * 1.95, c.z + safe * 1.7), target: target(0, 0.02, 0) },
+      { camera: new THREE.Vector3(c.x + safe * 1.70, c.y + elevated * 1.90, c.z + safe * 1.90), target: target(0, 0.05, 0) },
+      { camera: new THREE.Vector3(c.x + safe * 1.38, c.y + elevated * 1.48, c.z + safe * 1.48), target: target(0.04, 0.02, 0) },
+      { camera: new THREE.Vector3(c.x + safe * 1.10, c.y + elevated * 1.12, c.z + safe * 1.10), target: target(0, 0.04, 0) },
+      { camera: new THREE.Vector3(c.x + safe * 0.90, c.y + elevated * 0.88, c.z + safe * 0.78), target: target(-0.08, 0.08, -0.04) },
+      { camera: new THREE.Vector3(c.x - safe * 0.78, c.y + elevated * 0.95, c.z + safe * 0.72), target: target(-0.12, 0.10, -0.08) },
+      { camera: new THREE.Vector3(c.x - safe * 1.15, c.y + elevated * 1.30, c.z + safe * 1.15), target: target(0.08, 0.06, 0) },
+      { camera: new THREE.Vector3(c.x - safe * 1.65, c.y + elevated * 1.82, c.z + safe * 1.60), target: target(0, 0.02, 0) },
+      { camera: new THREE.Vector3(c.x + safe * 1.85, c.y + elevated * 2.00, c.z + safe * 1.85), target: target(0, 0.02, 0) },
     ];
   }, [bounds]);
 
   useFrame((_, delta) => {
-    smoothed.current = THREE.MathUtils.damp(smoothed.current, scrollTarget.current, 7, delta);
+    const next = THREE.MathUtils.clamp(scrollTarget.current, 0, 1);
+    smoothed.current = THREE.MathUtils.damp(smoothed.current, next, 6.5, delta);
 
     const scaled = smoothed.current * (waypoints.length - 1);
     const i = Math.min(waypoints.length - 2, Math.max(0, Math.floor(scaled)));
@@ -165,15 +151,32 @@ function CameraDirector({
 
     currentCamera.current.lerpVectors(a.camera, b.camera, t);
     currentTarget.current.lerpVectors(a.target, b.target, t);
+    currentCamera.current.y += Math.sin(smoothed.current * Math.PI * 4) * CAMERA_LIFT;
 
-    // Tiny organic vertical movement, kept deliberately below architectural
-    // framing scale so it never makes the camera appear to jump.
-    currentCamera.current.y +=
-      Math.sin(smoothed.current * Math.PI * 4) * CAMERA_LIFT;
-
-    camera.position.copy(currentCamera.current);
+    if (!initialized.current) {
+      camera.position.copy(currentCamera.current);
+      initialized.current = true;
+    } else {
+      camera.position.lerp(currentCamera.current, Math.min(1, delta * 10));
+    }
     camera.lookAt(currentTarget.current);
   });
+
+  return null;
+}
+
+function WebGLGuard({ onContextLost }: { onContextLost: () => void }) {
+  const { gl } = useThree();
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const handleLost = (event: Event) => {
+      event.preventDefault();
+      onContextLost();
+    };
+    canvas.addEventListener("webglcontextlost", handleLost, { passive: false });
+    return () => canvas.removeEventListener("webglcontextlost", handleLost);
+  }, [gl, onContextLost]);
 
   return null;
 }
@@ -181,9 +184,11 @@ function CameraDirector({
 function ArchitecturalScene({
   scrollTarget,
   onReady,
+  onContextLost,
 }: {
   scrollTarget: React.MutableRefObject<number>;
   onReady: (box: THREE.Box3) => void;
+  onContextLost: () => void;
 }) {
   const [bounds, setBounds] = useState<THREE.Box3 | null>(null);
 
@@ -201,7 +206,7 @@ function ArchitecturalScene({
       <directionalLight
         castShadow
         position={[8, 12, 10]}
-        intensity={3.0}
+        intensity={3}
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-bias={-0.00015}
@@ -213,17 +218,12 @@ function ArchitecturalScene({
 
       <Suspense fallback={<Html center><div className="sceneai-loader">LOADING ARCHITECTURE</div></Html>}>
         <House onReady={handleReady} />
-        <ContactShadows
-          position={[0, -5.9, 0]}
-          opacity={0.38}
-          scale={28}
-          blur={2.8}
-          far={18}
-        />
+        <ContactShadows position={[0, -5.9, 0]} opacity={0.38} scale={28} blur={2.8} far={18} />
       </Suspense>
 
       <CameraDirector scrollTarget={scrollTarget} bounds={bounds} />
       <CinematicGrade />
+      <WebGLGuard onContextLost={onContextLost} />
       <Preload all />
     </>
   );
@@ -232,31 +232,38 @@ function ArchitecturalScene({
 export default function SceneAITest() {
   const [progress, setProgress] = useState(0);
   const [loaded, setLoaded] = useState(false);
-  const [bounds, setBounds] = useState<THREE.Box3 | null>(null);
+  const [contextLost, setContextLost] = useState(false);
   const target = useRef(0);
   const current = useRef(0);
-  const raf = useRef<number | null>(null);
+
+  const updateScrollTarget = useCallback(() => {
+    const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    target.current = THREE.MathUtils.clamp(window.scrollY / maxScroll, 0, 1);
+  }, []);
+
+  useEffect(() => {
+    updateScrollTarget();
+    window.addEventListener("scroll", updateScrollTarget, { passive: true });
+    window.addEventListener("resize", updateScrollTarget);
+    return () => {
+      window.removeEventListener("scroll", updateScrollTarget);
+      window.removeEventListener("resize", updateScrollTarget);
+    };
+  }, [updateScrollTarget]);
 
   useEffect(() => {
     let frame = 0;
-    let lastChapter = "";
-    let lastUpdate = 0;
-
-    const syncUI = (time: number) => {
-      const next = chapterFor(current.current);
-      if (next.no !== lastChapter && time - lastUpdate > 80) {
-        lastChapter = next.no;
-        lastUpdate = time;
-        setProgress(current.current);
-      }
+    const syncUI = () => {
+      current.current = target.current;
+      setProgress((value) => Math.abs(value - target.current) > 0.002 ? target.current : value);
       frame = requestAnimationFrame(syncUI);
     };
-
     frame = requestAnimationFrame(syncUI);
     return () => cancelAnimationFrame(frame);
   }, []);
 
   const chapter = chapterFor(progress);
+  const handleReady = useCallback((_box: THREE.Box3) => setLoaded(true), []);
 
   return (
     <main className="sceneai-test">
@@ -264,11 +271,15 @@ export default function SceneAITest() {
         <Canvas
           shadows
           camera={{ fov: CAMERA_FOV, near: 0.05, far: 100 }}
-          gl={{ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true }}
-          dpr={[1, 1.75]}
+          gl={{ antialias: true, powerPreference: "high-performance" }}
+          dpr={[1, 1.5]}
           onCreated={() => setLoaded(true)}
         >
-          <ArchitecturalScene scrollTarget={target} onReady={setBounds} />
+          <ArchitecturalScene
+            scrollTarget={target}
+            onReady={handleReady}
+            onContextLost={() => setContextLost(true)}
+          />
         </Canvas>
       </div>
 
@@ -283,9 +294,7 @@ export default function SceneAITest() {
 
       <aside className="sceneai-progress">
         <span>{chapter.no}</span>
-        <div className="sceneai-progress-track">
-          <i style={{ transform: `scaleY(${Math.max(0.02, progress)})` }} />
-        </div>
+        <div className="sceneai-progress-track"><i style={{ transform: `scaleY(${Math.max(0.02, progress)})` }} /></div>
         <span>06</span>
       </aside>
 
@@ -295,9 +304,9 @@ export default function SceneAITest() {
         <span>{chapter.detail}</span>
       </section>
 
-      {!loaded && (
+      {(!loaded || contextLost) && (
         <div className="sceneai-loading">
-          <span>PREPARING THE SCENE</span>
+          <span>{contextLost ? "WEBGL CONTEXT LOST — RELOAD TO RESTORE" : "PREPARING THE SCENE"}</span>
         </div>
       )}
 
