@@ -96,43 +96,58 @@ function CameraDirector({
   const currentTarget = useRef(new THREE.Vector3());
 
   const waypoints = useMemo<Waypoint[]>(() => {
+    // Build the path from the actual normalized house bounds. The previous
+    // path used hard-coded world offsets that could send the camera through
+    // the model or past the near clipping plane when the GLB dimensions/origin
+    // differed. These positions stay outside the house and keep a consistent
+    // architectural framing.
     const b = bounds ?? new THREE.Box3(
-      new THREE.Vector3(-6, -2, -5),
-      new THREE.Vector3(6, 5, 5)
+      new THREE.Vector3(-6, -6, -6),
+      new THREE.Vector3(6, 6, 6)
     );
     const c = b.getCenter(new THREE.Vector3());
-    const h = Math.max(1, b.max.y - b.min.y);
-    const z = Math.max(1, b.max.z - b.min.z);
+    const size = b.getSize(new THREE.Vector3());
+    const radius = Math.max(size.x, size.z) * 0.5;
+    const halfHeight = Math.max(1, size.y * 0.5);
+    const safe = Math.max(2.5, radius * 0.72);
+    const elevated = Math.max(1.2, halfHeight * 0.28);
+
+    const target = (x = 0, y = 0, z = 0) =>
+      new THREE.Vector3(
+        c.x + x * radius,
+        c.y + y * halfHeight,
+        c.z + z * radius
+      );
 
     return [
-      { camera: new THREE.Vector3(c.x + 11, c.y + h * 0.46, c.z + 17), target: new THREE.Vector3(c.x - 0.4, c.y + h * 0.22, c.z) },
-      { camera: new THREE.Vector3(c.x + 7.4, c.y + h * 0.31, c.z + 11), target: new THREE.Vector3(c.x, c.y + h * 0.23, c.z) },
-      { camera: new THREE.Vector3(c.x + 4.0, c.y + h * 0.23, c.z + 7.0), target: new THREE.Vector3(c.x - 0.1, c.y + h * 0.24, c.z) },
-      { camera: new THREE.Vector3(c.x + 1.1, c.y + h * 0.19, c.z + Math.max(2.4, z * 0.43)), target: new THREE.Vector3(c.x - 0.45, c.y + h * 0.22, c.z - 0.15) },
-      { camera: new THREE.Vector3(c.x - 1.8, c.y + h * 0.21, c.z + Math.max(2.8, z * 0.56)), target: new THREE.Vector3(c.x - 0.8, c.y + h * 0.25, c.z - 0.2) },
-      { camera: new THREE.Vector3(c.x - 5.8, c.y + h * 0.39, c.z + 9.5), target: new THREE.Vector3(c.x + 0.2, c.y + h * 0.25, c.z) },
-      { camera: new THREE.Vector3(c.x - 9.8, c.y + h * 0.58, c.z + 14.5), target: new THREE.Vector3(c.x, c.y + h * 0.22, c.z) },
-      { camera: new THREE.Vector3(c.x + 12.5, c.y + h * 0.54, c.z + 18.5), target: new THREE.Vector3(c.x, c.y + h * 0.22, c.z) },
+      { camera: new THREE.Vector3(c.x + safe * 1.55, c.y + elevated * 1.9, c.z + safe * 1.9), target: target(0, 0.05, 0) },
+      { camera: new THREE.Vector3(c.x + safe * 1.25, c.y + elevated * 1.35, c.z + safe * 1.45), target: target(0.05, 0.02, 0) },
+      { camera: new THREE.Vector3(c.x + safe * 0.95, c.y + elevated * 1.05, c.z + safe * 1.05), target: target(0, 0.04, 0) },
+      { camera: new THREE.Vector3(c.x + safe * 0.78, c.y + elevated * 0.82, c.z + safe * 0.72), target: target(-0.08, 0.08, -0.04) },
+      { camera: new THREE.Vector3(c.x - safe * 0.72, c.y + elevated * 0.9, c.z + safe * 0.62), target: target(-0.12, 0.1, -0.08) },
+      { camera: new THREE.Vector3(c.x - safe * 1.05, c.y + elevated * 1.25, c.z + safe * 1.1), target: target(0.08, 0.06, 0) },
+      { camera: new THREE.Vector3(c.x - safe * 1.5, c.y + elevated * 1.8, c.z + safe * 1.55), target: target(0, 0.02, 0) },
+      { camera: new THREE.Vector3(c.x + safe * 1.7, c.y + elevated * 1.95, c.z + safe * 1.7), target: target(0, 0.02, 0) },
     ];
   }, [bounds]);
 
   useFrame((_, delta) => {
-    smoothed.current = THREE.MathUtils.damp(
-      smoothed.current,
-      progress,
-      5.5,
-      delta
-    );
+    smoothed.current = THREE.MathUtils.damp(smoothed.current, progress, 7, delta);
 
     const scaled = smoothed.current * (waypoints.length - 1);
-    const i = Math.min(waypoints.length - 2, Math.floor(scaled));
+    const i = Math.min(waypoints.length - 2, Math.max(0, Math.floor(scaled)));
     const t = THREE.MathUtils.smootherstep(scaled - i, 0, 1);
     const a = waypoints[i];
     const b = waypoints[i + 1];
 
     currentCamera.current.lerpVectors(a.camera, b.camera, t);
     currentTarget.current.lerpVectors(a.target, b.target, t);
-    currentCamera.current.y += Math.sin(smoothed.current * Math.PI * 6) * CAMERA_LIFT;
+
+    // Tiny organic vertical movement, kept deliberately below architectural
+    // framing scale so it never makes the camera appear to jump.
+    currentCamera.current.y +=
+      Math.sin(smoothed.current * Math.PI * 4) * CAMERA_LIFT;
+
     camera.position.copy(currentCamera.current);
     camera.lookAt(currentTarget.current);
   });
