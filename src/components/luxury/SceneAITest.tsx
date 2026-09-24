@@ -75,10 +75,10 @@ function House({ onReady }: { onReady: (box: THREE.Box3) => void }) {
 function CinematicGrade() {
   return (
     <EffectComposer multisampling={2}>
+      <Bloom luminanceThreshold={1.05} mipmapBlur intensity={0.12} radius={0.5} />
+      <Noise premultiply opacity={0.018} />
+      <Vignette eskil={false} offset={0.22} darkness={0.62} />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      <Bloom luminanceThreshold={0.78} mipmapBlur intensity={0.16} radius={0.55} />
-      <Noise premultiply opacity={0.025} />
-      <Vignette eskil={false} offset={0.22} darkness={0.68} />
     </EffectComposer>
   );
 }
