@@ -39,15 +39,46 @@ function normalizeHouse(source: THREE.Object3D) {
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     materials.forEach((material) => {
       const mat = material as THREE.MeshStandardMaterial;
-      if (!mat.isMeshStandardMaterial) return;
-      mat.envMapIntensity = 0.8;
-      mat.roughness = Math.max(0.22, mat.roughness);
+      if (!mat?.isMeshStandardMaterial) return;
+
+      const name = (mat.name || "").toLowerCase();
+      // Preserve authored maps when present; improve untextured materials with
+      // restrained architectural PBR colors instead of a generic gray model.
+      if (!mat.map) {
+        if (/glass|window|glazing/.test(name)) {
+          mat.color.set("#8fa4a6");
+          mat.roughness = 0.08;
+          mat.metalness = 0.08;
+          mat.transparent = true;
+          mat.opacity = 0.72;
+        } else if (/roof|slate/.test(name)) {
+          mat.color.set("#34332f");
+          mat.roughness = 0.48;
+          mat.metalness = 0.04;
+        } else if (/stone|concrete|cement|plaster|wall/.test(name)) {
+          mat.color.set("#b8b0a2");
+          mat.roughness = 0.66;
+          mat.metalness = 0;
+        } else if (/wood|oak|timber/.test(name)) {
+          mat.color.set("#8a6247");
+          mat.roughness = 0.5;
+          mat.metalness = 0;
+        } else if (/metal|steel|aluminium|aluminum/.test(name)) {
+          mat.color.set("#4c5050");
+          mat.roughness = 0.25;
+          mat.metalness = 0.72;
+        }
+      }
+
+      mat.envMapIntensity = 0.72;
+      if (!/glass|window|glazing/.test(name)) {
+        mat.roughness = Math.max(0.2, mat.roughness);
+      }
     });
   });
 
   return scene;
 }
-
 function LoadedHouse({ onBounds }: { onBounds: (box: THREE.Box3) => void }) {
   const { scene: source } = useGLTF(HOUSE_MODEL);
   const scene = useMemo(() => normalizeHouse(source), [source]);
@@ -139,13 +170,18 @@ function CameraRig({
       new THREE.Vector3(center.x + x * radius, center.y + y * height, center.z + z * radius);
 
     return [
-      { position: p(2.15, 0.72, 2.35), target: t(0, 0.02, 0) },
-      { position: p(1.72, 0.58, 1.82), target: t(0.08, 0.05, 0) },
-      { position: p(1.05, 0.38, 1.18), target: t(0.12, 0.08, 0.02) },
-      { position: p(0.55, 0.28, 0.76), target: t(-0.12, 0.12, -0.08) },
-      { position: p(-0.78, 0.42, 0.92), target: t(-0.08, 0.1, -0.04) },
-      { position: p(-1.65, 0.66, 1.48), target: t(0.04, 0.06, 0) },
-      { position: p(2.0, 0.86, 2.05), target: t(0, 0.02, 0) },
+      // Exterior arrival: wide, low and slow.
+      { position: p(2.25, 0.72, 2.45), target: t(0, 0.02, 0) },
+      { position: p(1.62, 0.48, 1.72), target: t(0.06, 0.05, 0) },
+      // Threshold: camera crosses the facade instead of stopping outside.
+      { position: p(0.72, 0.30, 0.82), target: t(0.02, 0.10, 0.02) },
+      { position: p(0.20, 0.18, 0.36), target: t(-0.10, 0.12, -0.18) },
+      // Interior reveal: eye-level architectural walkthrough.
+      { position: p(-0.28, 0.16, -0.12), target: t(-0.10, 0.16, -0.62) },
+      { position: p(-0.62, 0.20, -0.72), target: t(0.12, 0.18, -0.92) },
+      // Interior-to-exterior transition and final hero frame.
+      { position: p(0.42, 0.34, 0.48), target: t(0, 0.08, 0) },
+      { position: p(2.05, 0.86, 2.20), target: t(0, 0.02, 0) },
     ];
   }, [bounds]);
 
@@ -193,8 +229,9 @@ function Lighting() {
         shadow-camera-far={35}
       />
       <directionalLight position={[-7, 4, -5]} intensity={1.15} />
-      <pointLight position={[-4, 3, 3]} intensity={7} distance={18} />
-      <pointLight position={[4, 2, -4]} intensity={4} distance={16} />
+      <pointLight position={[-4, 3, 3]} intensity={6} distance={18} color="#ffd8b0" />
+      <pointLight position={[4, 2, -4]} intensity={4} distance={16} color="#b9d4ff" />
+      <pointLight position={[0, 2.1, 0]} intensity={2.2} distance={8} color="#fff1dc" />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -6, 0]} receiveShadow>
         <planeGeometry args={[45, 45]} />
         <meshStandardMaterial color="#171613" roughness={0.92} />
@@ -240,7 +277,7 @@ export default function FreshLuxuryHouse() {
         <Canvas
           shadows
           dpr={[1, 1.25]}
-          camera={{ fov: 35, near: 0.05, far: 100 }}
+          camera={{ fov: 35, near: 0.018, far: 100 }}
           gl={{ antialias: true, powerPreference: "default", alpha: false }}
           onCreated={({ gl }) => {
             gl.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
