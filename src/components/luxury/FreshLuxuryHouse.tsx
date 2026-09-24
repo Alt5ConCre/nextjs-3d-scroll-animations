@@ -274,6 +274,32 @@ function CameraRig({
   return null;
 }
 
+function HouseHoverController({ children }: { children: React.ReactNode }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const { pointer } = useThree();
+  const targetPosition = useRef(new THREE.Vector3());
+  const targetRotation = useRef(new THREE.Euler());
+
+  useFrame((_, delta) => {
+    const group = groupRef.current;
+    if (!group) return;
+
+    const hx = THREE.MathUtils.clamp(pointer.x, -1, 1);
+    const hy = THREE.MathUtils.clamp(pointer.y, -1, 1);
+
+    // Isolated house-only hover layer: scroll/camera choreography is untouched.
+    targetPosition.current.set(hx * 0.22, hy * 0.10, -hx * 0.10);
+    targetRotation.current.set(-hy * 0.018, hx * 0.032, 0);
+
+    const follow = 1 - Math.exp(-7 * delta);
+    group.position.lerp(targetPosition.current, follow);
+    group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, targetRotation.current.x, follow);
+    group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, targetRotation.current.y, follow);
+  });
+
+  return <group ref={groupRef}>{children}</group>;
+}
+
 function Lighting() {
   return (
     <>
@@ -307,17 +333,19 @@ function FreshScene({ uiRef }: { uiRef: React.MutableRefObject<HTMLDivElement | 
   return (
     <>
       <Lighting />
-      <Suspense
-        fallback={
-          <Html center>
-            <div className="fresh-loader">LOADING RESIDENCE</div>
-          </Html>
-        }
-      >
-        <SceneErrorBoundary>
-          <LoadedHouse onBounds={setBounds} />
-        </SceneErrorBoundary>
-      </Suspense>
+      <HouseHoverController>
+        <Suspense
+          fallback={
+            <Html center>
+              <div className="fresh-loader">LOADING RESIDENCE</div>
+            </Html>
+          }
+        >
+          <SceneErrorBoundary>
+            <LoadedHouse onBounds={setBounds} />
+          </SceneErrorBoundary>
+        </Suspense>
+      </HouseHoverController>
       <CameraRig bounds={bounds} uiRef={uiRef} />
     </>
   );
