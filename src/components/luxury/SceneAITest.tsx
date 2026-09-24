@@ -2,6 +2,8 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { EffectComposer, Bloom, Noise, Vignette, ToneMapping } from "@react-three/postprocessing";
+import { ToneMappingMode } from "postprocessing";
 import {
   ContactShadows,
   Environment,
@@ -14,6 +16,9 @@ import "./SceneAITest.css";
 
 const HOUSE_MODEL =
   "https://raw.githubusercontent.com/qduoduo-hwh/gptblender_demo/main/gptblender-house-lite.glb";
+
+const CAMERA_LIFT = 0.035;
+const CAMERA_FOV = 34;
 
 const chapters = [
   { at: 0, no: "01", label: "ARRIVAL", detail: "A cinematic approach to the residence." },
@@ -67,6 +72,17 @@ function House({ onReady }: { onReady: (box: THREE.Box3) => void }) {
   return <group ref={group}><primitive object={scene} /></group>;
 }
 
+function CinematicGrade() {
+  return (
+    <EffectComposer multisampling={2}>
+      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+      <Bloom luminanceThreshold={0.78} mipmapBlur intensity={0.16} radius={0.55} />
+      <Noise premultiply opacity={0.025} />
+      <Vignette eskil={false} offset={0.22} darkness={0.68} />
+    </EffectComposer>
+  );
+}
+
 function CameraDirector({
   progress,
   bounds,
@@ -76,6 +92,8 @@ function CameraDirector({
 }) {
   const { camera } = useThree();
   const smoothed = useRef(0);
+  const currentCamera = useRef(new THREE.Vector3());
+  const currentTarget = useRef(new THREE.Vector3());
 
   const waypoints = useMemo<Waypoint[]>(() => {
     const b = bounds ?? new THREE.Box3(
@@ -87,14 +105,14 @@ function CameraDirector({
     const z = Math.max(1, b.max.z - b.min.z);
 
     return [
-      { camera: new THREE.Vector3(c.x + 10, c.y + h * 0.42, c.z + 15), target: new THREE.Vector3(c.x, c.y + h * 0.18, c.z) },
-      { camera: new THREE.Vector3(c.x + 7, c.y + h * 0.30, c.z + 10), target: new THREE.Vector3(c.x, c.y + h * 0.20, c.z) },
-      { camera: new THREE.Vector3(c.x + 3.5, c.y + h * 0.24, c.z + 6.5), target: new THREE.Vector3(c.x, c.y + h * 0.20, c.z) },
-      { camera: new THREE.Vector3(c.x + 1.2, c.y + h * 0.18, c.z + Math.max(2.2, z * 0.45)), target: new THREE.Vector3(c.x, c.y + h * 0.16, c.z) },
-      { camera: new THREE.Vector3(c.x - 2.5, c.y + h * 0.23, c.z + Math.max(3, z * 0.60)), target: new THREE.Vector3(c.x, c.y + h * 0.18, c.z) },
-      { camera: new THREE.Vector3(c.x - 6.5, c.y + h * 0.42, c.z + 9), target: new THREE.Vector3(c.x, c.y + h * 0.20, c.z) },
-      { camera: new THREE.Vector3(c.x - 9, c.y + h * 0.58, c.z + 14), target: new THREE.Vector3(c.x, c.y + h * 0.18, c.z) },
-      { camera: new THREE.Vector3(c.x + 12, c.y + h * 0.52, c.z + 18), target: new THREE.Vector3(c.x, c.y + h * 0.20, c.z) },
+      { camera: new THREE.Vector3(c.x + 11, c.y + h * 0.46, c.z + 17), target: new THREE.Vector3(c.x - 0.4, c.y + h * 0.22, c.z) },
+      { camera: new THREE.Vector3(c.x + 7.4, c.y + h * 0.31, c.z + 11), target: new THREE.Vector3(c.x, c.y + h * 0.23, c.z) },
+      { camera: new THREE.Vector3(c.x + 4.0, c.y + h * 0.23, c.z + 7.0), target: new THREE.Vector3(c.x - 0.1, c.y + h * 0.24, c.z) },
+      { camera: new THREE.Vector3(c.x + 1.1, c.y + h * 0.19, c.z + Math.max(2.4, z * 0.43)), target: new THREE.Vector3(c.x - 0.45, c.y + h * 0.22, c.z - 0.15) },
+      { camera: new THREE.Vector3(c.x - 1.8, c.y + h * 0.21, c.z + Math.max(2.8, z * 0.56)), target: new THREE.Vector3(c.x - 0.8, c.y + h * 0.25, c.z - 0.2) },
+      { camera: new THREE.Vector3(c.x - 5.8, c.y + h * 0.39, c.z + 9.5), target: new THREE.Vector3(c.x + 0.2, c.y + h * 0.25, c.z) },
+      { camera: new THREE.Vector3(c.x - 9.8, c.y + h * 0.58, c.z + 14.5), target: new THREE.Vector3(c.x, c.y + h * 0.22, c.z) },
+      { camera: new THREE.Vector3(c.x + 12.5, c.y + h * 0.54, c.z + 18.5), target: new THREE.Vector3(c.x, c.y + h * 0.22, c.z) },
     ];
   }, [bounds]);
 
@@ -112,9 +130,11 @@ function CameraDirector({
     const a = waypoints[i];
     const b = waypoints[i + 1];
 
-    camera.position.lerpVectors(a.camera, b.camera, t);
-    const target = new THREE.Vector3().lerpVectors(a.target, b.target, t);
-    camera.lookAt(target);
+    currentCamera.current.lerpVectors(a.camera, b.camera, t);
+    currentTarget.current.lerpVectors(a.target, b.target, t);
+    currentCamera.current.y += Math.sin(smoothed.current * Math.PI * 6) * CAMERA_LIFT;
+    camera.position.copy(currentCamera.current);
+    camera.lookAt(currentTarget.current);
   });
 
   return null;
@@ -165,6 +185,7 @@ function ArchitecturalScene({
       </Suspense>
 
       <CameraDirector progress={progress} bounds={bounds} />
+      <CinematicGrade />
       <Preload all />
     </>
   );
@@ -209,9 +230,9 @@ export default function SceneAITest() {
       <div className="sceneai-canvas">
         <Canvas
           shadows
-          dpr={[1, 1.6]}
-          camera={{ fov: 36, near: 0.05, far: 100 }}
-          gl={{ antialias: true, powerPreference: "high-performance" }}
+          camera={{ fov: CAMERA_FOV, near: 0.05, far: 100 }}
+          gl={{ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true }}
+          dpr={[1, 1.75]}
           onCreated={() => setLoaded(true)}
         >
           <ArchitecturalScene progress={progress} onReady={setBounds} />
