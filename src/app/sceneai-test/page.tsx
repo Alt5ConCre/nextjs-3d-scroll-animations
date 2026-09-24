@@ -1,8 +1,6 @@
-import dynamic from "next/dynamic";
+"use client";
 
-const SceneAITest = dynamic(() => import("@/components/luxury/SceneAITest"), {
-  ssr: false,
-});
+import SceneAITest from "@/components/luxury/SceneAITest";
 
 export default function SceneAITestPage() {
   return <SceneAITest />;
