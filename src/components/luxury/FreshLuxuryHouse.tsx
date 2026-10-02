@@ -156,6 +156,27 @@ function CameraRig({
   const { camera } = useThree();
   const scroll = useScroll();
   const smoothed = useRef(0);
+  const pointer = useRef(new THREE.Vector2());
+  const pointerSmooth = useRef(new THREE.Vector2());
+  const hoverPosition = useRef(new THREE.Vector3());
+  const hoverTarget = useRef(new THREE.Vector3());
+
+  useEffect(() => {
+    const element = gl.domElement;
+    const onMove = (event: PointerEvent) => {
+      const rect = element.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      pointer.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.current.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+    };
+    const onLeave = () => pointer.current.set(0, 0);
+    element.addEventListener("pointermove", onMove);
+    element.addEventListener("pointerleave", onLeave);
+    return () => {
+      element.removeEventListener("pointermove", onMove);
+      element.removeEventListener("pointerleave", onLeave);
+    };
+  }, [gl]);
 
   const waypoints = useMemo<Waypoint[]>(() => {
     const b =
@@ -218,9 +239,35 @@ function CameraRig({
     a.current.lerpVectors(waypoints[index].position, waypoints[index + 1].position, local);
     b.current.lerpVectors(waypoints[index].target, waypoints[index + 1].target, local);
 
+    pointerSmooth.current.x = THREE.MathUtils.damp(pointerSmooth.current.x, pointer.current.x, 7, delta);
+    pointerSmooth.current.y = THREE.MathUtils.damp(pointerSmooth.current.y, pointer.current.y, 7, delta);
+
+    const hx = pointerSmooth.current.x;
+    const hy = pointerSmooth.current.y;
+    const hoverWeight = smoothed.current > 0.08 && smoothed.current < 0.92 ? 1 : 0.65;
+
+    hoverPosition.current.set(
+      hx * 0.28 * hoverWeight,
+      hy * 0.10 * hoverWeight,
+      -hx * 0.12 * hoverWeight
+    );
+    hoverTarget.current.set(hx * 0.16, hy * 0.08, hx * 0.06);
+
+    const desiredPosition = a.current.clone().add(hoverPosition.current);
+    const desiredTarget = b.current.clone().add(hoverTarget.current);
+
+    // Move only the wrapper group. The GLB scene itself remains untouched.
+    const house = motionRef.current;
+    if (house) {
+      house.position.x = THREE.MathUtils.damp(house.position.x, hx * 0.08 * hoverWeight, 6, delta);
+      house.position.y = THREE.MathUtils.damp(house.position.y, hy * 0.05 * hoverWeight, 6, delta);
+      house.rotation.y = THREE.MathUtils.damp(house.rotation.y, hx * 0.018 * hoverWeight, 6, delta);
+      house.rotation.x = THREE.MathUtils.damp(house.rotation.x, -hy * 0.010 * hoverWeight, 6, delta);
+    }
+
     const follow = 1 - Math.exp(-10 * delta);
-    camera.position.lerp(a.current, follow);
-    camera.lookAt(b.current);
+    camera.position.lerp(desiredPosition, follow);
+    camera.lookAt(desiredTarget);
 
     if (uiRef.current) {
       const value = smoothed.current;
