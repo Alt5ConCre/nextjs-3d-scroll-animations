@@ -1,11 +1,12 @@
 "use client";
+
 import dynamic from "next/dynamic";
 
-const BurgerExperience = dynamic(
-  () => import("@/components/burger/BurgerExperience"),
+const LuxuryHouseExperience = dynamic(
+  () => import("@/components/house/LuxuryHouseExperience"),
   { ssr: false }
 );
 
 export default function Home() {
-  return <BurgerExperience />;
+  return <LuxuryHouseExperience />;
 }
