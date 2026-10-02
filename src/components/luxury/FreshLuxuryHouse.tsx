@@ -6,8 +6,7 @@ import { Html, Scroll, ScrollControls, useGLTF, useScroll } from "@react-three/d
 import * as THREE from "three";
 import "./FreshLuxuryHouse.css";
 
-const HOUSE_MODEL =
-  "https://raw.githubusercontent.com/qduoduo-hwh/gptblender_demo/main/gptblender-house-lite.glb";
+const HOUSE_MODEL = "/house/models/luxury-house-architectural.glb";
 
 const chapters = [
   ["01", "ARRIVAL", "A slow architectural approach."],
@@ -148,9 +147,11 @@ class SceneErrorBoundary extends React.Component<
 function CameraRig({
   bounds,
   uiRef,
+  motionRef,
 }: {
   bounds: THREE.Box3 | null;
   uiRef: React.MutableRefObject<HTMLDivElement | null>;
+  motionRef: React.MutableRefObject<THREE.Group | null>;
 }) {
   const { camera } = useThree();
   const scroll = useScroll();
@@ -260,6 +261,7 @@ function Lighting() {
 
 function FreshScene({ uiRef }: { uiRef: React.MutableRefObject<HTMLDivElement | null> }) {
   const [bounds, setBounds] = useState<THREE.Box3 | null>(null);
+  const motionRef = useRef<THREE.Group | null>(null);
 
   return (
     <>
@@ -272,12 +274,44 @@ function FreshScene({ uiRef }: { uiRef: React.MutableRefObject<HTMLDivElement | 
         }
       >
         <SceneErrorBoundary>
-          <LoadedHouse onBounds={setBounds} />
+          <group ref={motionRef}>
+            <LoadedHouse onBounds={setBounds} />
+          </group>
         </SceneErrorBoundary>
       </Suspense>
-      <CameraRig bounds={bounds} uiRef={uiRef} />
+      <CameraRig bounds={bounds} uiRef={uiRef} motionRef={motionRef} />
     </>
   );
+}
+
+class CanvasErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn("[FreshLuxuryHouse] canvas runtime error isolated.", error);
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#11110f" }}>
+          <img
+            src="/house/poster.webp"
+            alt=""
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export default function FreshLuxuryHouse() {
@@ -292,6 +326,7 @@ export default function FreshLuxuryHouse() {
   return (
     <main className="fresh-house">
       <div className="fresh-canvas">
+        <CanvasErrorBoundary>
         <Canvas
           shadows
           dpr={[1, 1.25]}
@@ -309,6 +344,7 @@ export default function FreshLuxuryHouse() {
             </Scroll>
           </ScrollControls>
         </Canvas>
+        </CanvasErrorBoundary>
       </div>
 
       <div ref={uiRef} className="fresh-ui" data-ready={ready ? "true" : "false"}>
